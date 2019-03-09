@@ -1,0 +1,56 @@
+{
+    "game": {
+        "id": "80092350-6762-437f-a24f-944c92b72660"
+    },
+    "turn": 9,
+    "board": {
+        "height": 11,
+        "width": 11,
+        "food": [
+            {
+                "x": 2,
+                "y": 6
+            }
+        ],
+        "snakes": [
+            {
+                "id": "gs_VVKMqfmwDmqgfJfGgMp889rD",
+                "name": "lduchosal / gregory-dev",
+                "health": 91,
+                "body": [
+                    {
+                        "x": 1,
+                        "y": 10
+                    },
+                    {
+                        "x": 1,
+                        "y": 9
+                    },
+                    {
+                        "x": 1,
+                        "y": 8
+                    }
+                ]
+            }
+        ]
+    },
+    "you": {
+        "id": "gs_VVKMqfmwDmqgfJfGgMp889rD",
+        "name": "lduchosal / gregory-dev",
+        "health": 91,
+        "body": [
+            {
+                "x": 1,
+                "y": 10
+            },
+            {
+                "x": 1,
+                "y": 9
+            },
+            {
+                "x": 1,
+                "y": 8
+            }
+        ]
+    }
+}
