@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6601").unwrap();
+    let server = Server::http("0.0.0.0:6603").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
