@@ -3,7 +3,7 @@ extern crate tiny_http;
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("127.0.0.1:8888").unwrap();
+    let server = Server::http("0.0.0.0:6601").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
