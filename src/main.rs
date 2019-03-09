@@ -23,18 +23,20 @@ fn main() {
 
         println!("receving");
 
-        let rq = match server.recv() {
+        let mut rq = match server.recv() {
             Ok(rq) => rq,
             Err(_) => break
         };
 
-        println!("{:?}", rq);
+        println!(" rq method: {:?}", rq.method());
+        println!(" rq url: {:?}", rq.url());
+        println!(" rq headers: {:?}", rq.headers());
+        println!(" rq body_length: {:?}", rq.body_length());
 
-        println!("received request! method: {:?}, url: {:?}, headers: {:?}",
-            rq.method(),
-            rq.url(),
-            rq.headers()
-        );
+        let mut content = String::new();
+        rq.as_reader().read_to_string(&mut content).unwrap();
+
+        println!(" rq content: {:?}", content);
 
         let message = match rq.url() {
             "/start" => {
@@ -56,6 +58,7 @@ fn main() {
             _ => hello
         };
 
+        println!("response: {}", message);
         let response = Response::from_string(message);
         match rq.respond(response) {
             Ok(()) => {},
