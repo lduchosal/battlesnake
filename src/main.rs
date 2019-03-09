@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6601").unwrap();
+    let server = Server::http("0.0.0.0:6602").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
@@ -88,6 +88,7 @@ fn play(content: &str) -> Move {
     possibles.push(right);
 
     check_walls(&g, &mut possibles);
+    check_snakes(&g, &mut possibles);
     dump_results(&possibles);
 
     possibles.sort_by(|a, b| b.value.cmp(&a.value));
@@ -97,7 +98,7 @@ fn play(content: &str) -> Move {
 
 fn dump_results(possibles: &Vec<Possible>) {
     for p in possibles {
-        println!("possible: {:#?}", p);
+        println!("possible: {:?}", p);
     }
 }
 
@@ -110,11 +111,24 @@ fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
         if p.point.y < 0 {
             p.value -= 1;
         }
-        if p.point.x > (game.board.width as i8) {
+        if p.point.x >= (game.board.width as i8) {
             p.value -= 1;
         }
-        if p.point.x > (game.board.height as i8) {
+        if p.point.y >= (game.board.height as i8) {
             p.value -= 1;
+        }
+    }
+}
+
+fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
+
+    for p in possibles {
+        for s in &game.board.snakes {
+            for b in &s.body {
+                if p.point == *b {
+                    p.value -= 1 ;
+                }
+            }
         }
     }
 }
@@ -198,7 +212,7 @@ pub struct Game {
     game: GameId,
 
     #[serde(rename = "turn")]
-    turn: u8,
+    turn: u32,
 
     #[serde(rename = "board")]
     board: Board,
