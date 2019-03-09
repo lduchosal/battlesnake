@@ -9,14 +9,14 @@ fn main() {
 
 
     let mut snake = 0;
-    let config = "{'color':'#ff00ff','headType':'bendr','tailType':'pixel'}";
-    let right = "{'move':'right'}";
-    let left = "{'move':'left'}";
-    let up = "{'move':'up'}";
-    let down = "{'move':'down'}";
-    let bye = "{'say':'bye'}";
-    let hello = "{'say':'hello'}";
-    let pong = "{'say':'pong'}";
+    let config = "{\"color\":\"#ff00ff\",\"headType\":\"bendr\",\"tailType\":\"pixel\"}";
+    let right = "{\"move\":\"right\"}";
+    let left = "{\"move\":\"left\"}";
+    let up = "{\"move\":\"up\"}";
+    let down = "{\"move\":\"down\"}";
+    let bye = "{\"say\":\"bye\"}";
+    let hello = "{\"say\":\"hello\"}";
+    let pong = "{\"say\":\"pong\"}";
 
 
     loop {
