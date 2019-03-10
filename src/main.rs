@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6604").unwrap();
+    let server = Server::http("0.0.0.0:6605").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
@@ -78,11 +78,15 @@ fn play(content: &str) -> Move {
 
     let g: Game = serde_json::from_str(content).expect("Unable to deserialize game");
 
-    let mut possibles = possibles(&g.you);
+    let head = &g.you.body[0];
+
+    let mut possibles = possibles(&head);
     check_walls(&g, &mut possibles);
     check_snakes(&g, &mut possibles);
     check_tails(&g, &mut possibles);
     check_collisions(&g, &mut possibles);
+    prefer_food(&g, &mut possibles);
+
     dump_results(&possibles);
 
     best_fit(&mut possibles)
@@ -102,8 +106,7 @@ fn best_fit(possibles: &mut Vec<Possible>) -> Move {
     bestfit.dir.clone()
 }
 
-fn possibles(snake: &Snake) -> Vec<Possible> {
-    let head = &snake.body[0];
+fn possibles(head: &Point) -> Vec<Possible> {
 
     let mut possibles: Vec<Possible> = Vec::new();
     let up = Possible { point: Point { x: head.x, y: head.y -1 }, dir: Move::Up, value: 10, rand: random() };
@@ -143,6 +146,30 @@ fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
     }
 }
 
+fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
+
+
+    for p in possibles {
+
+        let mut closest: i32 = game.board.height as i32;
+        for f in &game.board.food {
+
+            let distancex = (p.point.x as i32 - f.x as i32).abs();
+            let distancey = (p.point.y as i32 - f.y as i32).abs();
+
+            let distance = (distancex + distancey);
+
+            if distance < closest {
+                closest = distance;
+            }
+        }
+
+        let value = 5 - closest;
+
+        p.value += value;
+    }
+}
+
 fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
     for p in possibles {
@@ -164,7 +191,7 @@ fn check_tails(game: &Game, possibles: &mut Vec<Possible>) {
                 None => {},
                 Some(tail) => {
                     if p.point == *tail {
-                        p.value += 5 ;
+                        p.value += 10 ;
                     }
                 }
             }
@@ -177,7 +204,8 @@ fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
     for p in ps {
         for s in &game.board.snakes {
 
-            let pothers = possibles(&s);
+            let head = &s.body[0];
+            let pothers = possibles(head);
             for po in pothers {
                 if p.point == po.point {
                     p.value -= 1 ;
@@ -186,6 +214,7 @@ fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
         }
     }
 }
+
 
 #[derive(Debug)]
 pub struct Possible {
