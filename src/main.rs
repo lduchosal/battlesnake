@@ -1,12 +1,16 @@
 extern crate tiny_http;
 extern crate serde_json;
+extern crate rand;
+
+// import commonly used items from the prelude:
+use rand::prelude::*;
 
 use serde::{Deserialize, Serialize};
 
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6603").unwrap();
+    let server = Server::http("0.0.0.0:6604").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
@@ -77,10 +81,23 @@ fn play(content: &str) -> Move {
     let mut possibles = possibles(&g.you);
     check_walls(&g, &mut possibles);
     check_snakes(&g, &mut possibles);
+    check_tails(&g, &mut possibles);
     check_collisions(&g, &mut possibles);
     dump_results(&possibles);
 
-    possibles.sort_by(|a, b| b.value.cmp(&a.value));
+    best_fit(&mut possibles)
+
+}
+
+fn best_fit(possibles: &mut Vec<Possible>) -> Move {
+
+    possibles.sort_by(|a, b| 
+        b.value
+            .cmp(&a.value)
+            .then(
+                b.rand.cmp(&a.rand)
+            )
+    );
     let bestfit = possibles.first().unwrap();
     bestfit.dir.clone()
 }
@@ -89,10 +106,10 @@ fn possibles(snake: &Snake) -> Vec<Possible> {
     let head = &snake.body[0];
 
     let mut possibles: Vec<Possible> = Vec::new();
-    let up = Possible { point: Point { x: head.x, y: head.y -1 }, dir: Move::Up, value: 10 };
-    let down = Possible { point: Point { x: head.x, y: head.y +1 }, dir: Move::Down, value: 10 };
-    let left = Possible { point: Point { x: head.x -1, y: head.y }, dir: Move::Left, value: 10 };
-    let right = Possible { point: Point { x: head.x +1, y: head.y }, dir: Move::Right, value: 10 };
+    let up = Possible { point: Point { x: head.x, y: head.y -1 }, dir: Move::Up, value: 10, rand: random() };
+    let down = Possible { point: Point { x: head.x, y: head.y +1 }, dir: Move::Down, value: 10, rand: random() };
+    let left = Possible { point: Point { x: head.x -1, y: head.y }, dir: Move::Left, value: 10, rand: random() };
+    let right = Possible { point: Point { x: head.x +1, y: head.y }, dir: Move::Right, value: 10, rand: random() };
 
     possibles.push(up);
     possibles.push(down);
@@ -139,6 +156,22 @@ fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
     }
 }
 
+fn check_tails(game: &Game, possibles: &mut Vec<Possible>) {
+
+    for p in possibles {
+        for s in &game.board.snakes {
+            match s.body.last() {
+                None => {},
+                Some(tail) => {
+                    if p.point == *tail {
+                        p.value += 5 ;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
 
     for p in ps {
@@ -158,7 +191,8 @@ fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
 pub struct Possible {
     point: Point,
     dir: Move,
-    value: i32
+    value: i32,
+    rand: u8
 }
 
 #[derive(Serialize, Deserialize)]
