@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6605").unwrap();
+    // let server = Server::http("0.0.0.0:6605").unwrap();
+    let server = Server::http("0.0.0.0:6609").unwrap();
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
@@ -84,8 +85,11 @@ fn play(content: &str) -> Move {
     check_walls(&g, &mut possibles);
     check_snakes(&g, &mut possibles);
     check_tails(&g, &mut possibles);
-    check_collisions(&g, &mut possibles);
+    check_heads(&g, &mut possibles);
+    hit_or_leave(&g, &mut possibles);
     prefer_food(&g, &mut possibles);
+    look_for_tail(&g, &mut possibles);
+    forward_thinking(&g, &mut possibles, 5);
 
     dump_results(&possibles);
 
@@ -109,10 +113,10 @@ fn best_fit(possibles: &mut Vec<Possible>) -> Move {
 fn possibles(head: &Point) -> Vec<Possible> {
 
     let mut possibles: Vec<Possible> = Vec::new();
-    let up = Possible { point: Point { x: head.x, y: head.y -1 }, dir: Move::Up, value: 10, rand: random() };
-    let down = Possible { point: Point { x: head.x, y: head.y +1 }, dir: Move::Down, value: 10, rand: random() };
-    let left = Possible { point: Point { x: head.x -1, y: head.y }, dir: Move::Left, value: 10, rand: random() };
-    let right = Possible { point: Point { x: head.x +1, y: head.y }, dir: Move::Right, value: 10, rand: random() };
+    let up = Possible::new( head.x, head.y -1, Move::Up);
+    let down = Possible::new( head.x, head.y +1, Move::Down);
+    let left = Possible::new( head.x -1, head.y, Move::Left);
+    let right = Possible::new( head.x +1, head.y, Move::Right);
 
     possibles.push(up);
     possibles.push(down);
@@ -131,19 +135,26 @@ fn dump_results(possibles: &Vec<Possible>) {
 fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
 
     for p in possibles {
+
+        let mut check_walls = 0;
+
         if p.point.x < 0 {
-            p.value -= 10;
+            check_walls -= 10;
         }
         if p.point.y < 0 {
-            p.value -= 10;
+            check_walls -= 10;
         }
         if p.point.x >= (game.board.width as i8) {
-            p.value -= 10;
+            check_walls -= 10;
         }
         if p.point.y >= (game.board.height as i8) {
-            p.value -= 10;
+            check_walls -= 10;
         }
+
+        p.value += check_walls;
+        p.check_walls = check_walls;
     }
+
 }
 
 fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
@@ -157,7 +168,7 @@ fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
             let distancex = (p.point.x as i32 - f.x as i32).abs();
             let distancey = (p.point.y as i32 - f.y as i32).abs();
 
-            let distance = (distancex + distancey);
+            let distance = distancex + distancey;
 
             if distance < closest {
                 closest = distance;
@@ -167,16 +178,50 @@ fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
         let value = 5 - closest;
 
         p.value += value;
+        p.prefer_food = value;
+    }
+}
+
+fn look_for_tail(game: &Game, possibles: &mut Vec<Possible>) {
+
+    let body = &game.you.body;
+    if body.len() < 3 {
+        return;
+    }
+
+    if game.you.health < 50 {
+        return;
+    }
+
+    let tail = body.last().unwrap();
+    let mut closest: i32 = game.board.height as i32 * 2;
+    for p in possibles {
+
+
+        let distancex = (p.point.x as i32 - tail.x as i32).abs();
+        let distancey = (p.point.y as i32 - tail.y as i32).abs();
+        let total = distancex + distancey;
+
+        if total < closest {
+            closest = total;
+        }
+
+        let value = 5 - closest;
+        p.value += value;
+        p.look_for_tail = value;
     }
 }
 
 fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
+    let check_snakes = 10;
+
     for p in possibles {
         for s in &game.board.snakes {
             for b in &s.body {
                 if p.point == *b {
-                    p.value -= 10 ;
+                    p.value -= check_snakes ;
+                    p.check_snakes = check_snakes;
                 }
             }
         }
@@ -185,13 +230,16 @@ fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
 fn check_tails(game: &Game, possibles: &mut Vec<Possible>) {
 
+    let check_tails = 10;
+
     for p in possibles {
         for s in &game.board.snakes {
             match s.body.last() {
                 None => {},
                 Some(tail) => {
                     if p.point == *tail {
-                        p.value += 10 ;
+                        p.value += check_tails;
+                        p.check_tails = check_tails;
                     }
                 }
             }
@@ -199,8 +247,9 @@ fn check_tails(game: &Game, possibles: &mut Vec<Possible>) {
     }
 }
 
-fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
+fn check_heads(game: &Game, ps: &mut Vec<Possible>) {
 
+    let check_heads = 1;
     for p in ps {
         for s in &game.board.snakes {
 
@@ -208,20 +257,135 @@ fn check_collisions(game: &Game, ps: &mut Vec<Possible>) {
             let pothers = possibles(head);
             for po in pothers {
                 if p.point == po.point {
-                    p.value -= 1 ;
+                    p.value -= check_heads;
+                    p.check_heads = check_heads;
                 }
             }
         }
     }
 }
 
+fn hit_or_leave(game: &Game, ps: &mut Vec<Possible>) {
+
+    for p in ps {
+        for s in &game.board.snakes {
+
+            let head = &s.body[0];
+            let pothers = possibles(head);
+
+            let mut value = 5;
+            if s.body.len() >= game.you.body.len() {
+                value *= -1;
+            }
+
+            for po in pothers {
+                if p.point == po.point {
+                    p.value += value ;
+                    p.hit_or_leave += value ;
+                }
+            }
+        }
+    }
+}
+
+fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
+
+    for p in ps {
+
+        let mut futur = game.clone();
+        let mut pathes = Vec::<Path>::new();
+
+        let root = Path { point: p.point.clone(), level: 0 };
+        pathes.push(root);
+
+        for level in 0..depth {
+
+            let level_pathes = find_pathes(&pathes, level);
+
+            for path in &level_pathes {
+
+                let mut fps = possibles(&path.point);
+                check_walls(&futur, &mut fps);
+                check_snakes(&futur, &mut fps);
+
+                for fp in fps {
+                    if fp.value > 0 {
+                        let path = Path { point: fp.point.clone(), level: level +1 };
+                        pathes.push(path);
+                    }
+                }
+
+            }
+
+            for snake in &mut futur.board.snakes {
+                if &snake.id == &futur.you.id {
+
+                    for path in &level_pathes {
+                        snake.body.push(path.point.clone());
+                    }
+                }
+            }
+        }
+
+        let forward_thinking = 10 / pathes.len() as i32;
+        p.value -= forward_thinking;
+        p.forward_thinking -= forward_thinking;
+    }
+}
+
+
+fn find_pathes(pathes: &Vec::<Path>, level: u8) -> Vec::<Path> {
+    let mut result = Vec::<Path>::new();
+
+    for path in pathes {
+        if path.level == level {
+            let chosen = path.clone();
+            result.push(chosen);
+        }
+    }
+
+    result
+}
 
 #[derive(Debug)]
 pub struct Possible {
     point: Point,
     dir: Move,
     value: i32,
+    check_walls: i32,
+    check_snakes: i32,
+    check_tails: i32,
+    check_heads: i32,
+    prefer_food: i32,
+    hit_or_leave: i32,
+    look_for_tail: i32,
+    forward_thinking: i32,
     rand: u8
+}
+
+impl Possible {
+    fn new(x: i8, y: i8, dir: Move) -> Possible {
+        Possible { 
+            point: Point { x: x, y: y }, 
+            dir: dir, 
+            value: 10, 
+            rand: random(),
+            check_walls: 0,
+            check_snakes: 0,
+            check_tails: 0,
+            check_heads: 0,
+            prefer_food: 0,
+            hit_or_leave: 0,
+            look_for_tail: 0,
+            forward_thinking: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Path {
+    point: Point,
+    level: u8,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -290,7 +454,7 @@ enum Say {
     Pong
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Game {
     #[serde(rename = "game")]
     game: GameId,
@@ -305,7 +469,7 @@ pub struct Game {
     you: Snake,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Board {
     #[serde(rename = "height")]
     height: u8,
@@ -320,7 +484,7 @@ pub struct Board {
     snakes: Vec<Snake>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Point {
     #[serde(rename = "x")]
     pub x: i8,
@@ -336,7 +500,7 @@ impl PartialEq for Point {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Snake {
     #[serde(rename = "id")]
     id: String,
@@ -351,7 +515,7 @@ pub struct Snake {
     body: Vec<Point>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct GameId {
     #[serde(rename = "id")]
     id: String,
