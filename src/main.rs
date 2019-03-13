@@ -10,7 +10,12 @@ use serde::{Deserialize, Serialize};
 fn main() {
     use tiny_http::{Server, Response};
 
-    let server = Server::http("0.0.0.0:6610").unwrap();
+    let home = "6601";
+    let train = "6600";
+    let albertfish = "6611";
+
+    let server = Server::http(format!("0.0.0.0:{}", home)).unwrap();
+
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
 
@@ -88,8 +93,10 @@ fn play(content: &str) -> Move {
     kill_heads(&g, &mut possibles);
     hit_or_leave(&g, &mut possibles);
     prefer_food(&g, &mut possibles);
+    prefer_food_distance(&g, &mut possibles);
     look_for_tail(&g, &mut possibles);
-    forward_thinking(&g, &mut possibles, 8 );
+    forward_thinking(&g, &mut possibles, 10);
+    prefer_forward_space(&g, &mut possibles);
 
     dump_results(&possibles);
     best_fit(&mut possibles)
@@ -133,21 +140,22 @@ fn dump_results(possibles: &Vec<Possible>) {
 
 fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
 
+    let wall = 20;
     for p in possibles {
 
         let mut check_walls = 0;
 
         if p.point.x < 0 {
-            check_walls -= 10;
+            check_walls -= wall;
         }
         if p.point.y < 0 {
-            check_walls -= 10;
+            check_walls -= wall;
         }
         if p.point.x >= (game.board.width as i16) {
-            check_walls -= 10;
+            check_walls -= wall;
         }
         if p.point.y >= (game.board.height as i16) {
-            check_walls -= 10;
+            check_walls -= wall;
         }
 
         p.value += check_walls;
@@ -156,12 +164,12 @@ fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
 
 }
 
-fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
+fn prefer_food(game: &Game, ps: &mut Vec<Possible>) {
 
 
-    for p in possibles {
+    for p in ps {
 
-        let mut closest: i32 = game.board.height as i32;
+        let mut closest: i32 = game.board.height as i32 + game.board.width as i32;
         for f in &game.board.food {
 
             let distancex = (p.point.x as i32 - f.x as i32).abs();
@@ -174,11 +182,23 @@ fn prefer_food(game: &Game, possibles: &mut Vec<Possible>) {
             }
         }
 
-        let value = 5 - closest;
-
-        p.value += value;
-        p.prefer_food = value;
+        p.prefer_food_distance = closest + 1; // prevent div by 0
     }
+
+}
+
+fn prefer_food_distance(_: &Game, ps: &mut Vec<Possible>) {
+
+    ps.sort_by(|a, b| a.prefer_food_distance.cmp(&b.prefer_food_distance));
+    let total : f32 = ps.iter().map(|item| 1.0_f32 / item.prefer_food_distance as f32).sum();
+
+    let value = 10;
+    for p in ps {
+        let assigned = ((value as f32 * (1.0_f32 / p.prefer_food_distance as f32)) / total) as i32 ;
+        p.value += assigned;
+        p.prefer_food = assigned;
+    }
+
 }
 
 fn look_for_tail(game: &Game, possibles: &mut Vec<Possible>) {
@@ -213,7 +233,7 @@ fn look_for_tail(game: &Game, possibles: &mut Vec<Possible>) {
 
 fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
-    let check_snakes = 10;
+    let check_snakes = 20;
 
     for p in possibles {
         for s in &game.board.snakes {
@@ -298,7 +318,7 @@ fn hit_or_leave(game: &Game, ps: &mut Vec<Possible>) {
             let head = &s.body[0];
             let pothers = possibles(head);
 
-            let mut value = 5;
+            let mut value = 7;
             if s.body.len() >= game.you.body.len() {
                 value *= -1;
             }
@@ -313,9 +333,30 @@ fn hit_or_leave(game: &Game, ps: &mut Vec<Possible>) {
     }
 }
 
+fn prefer_forward_space(_: &Game, ps: &mut Vec<Possible>) {
+
+    ps.sort_by(|a, b| a.forward_pathes_len.cmp(&b.forward_pathes_len));
+    let total : i32 = ps.iter().map(|item| item.forward_pathes_len).sum();
+
+    let value = 10;
+    for p in ps {
+        if total <= 0 {
+            continue;
+        }
+        let assigned = value * p.forward_pathes_len / total;
+        p.value += assigned;
+        p.prefer_forward_space += assigned;
+    }
+
+}
+
 fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
     for p in ps {
+
+        if p.value < 0 {
+            continue;
+        }
 
         let mut futur = game.clone();
         let mut pathes = Vec::<Path>::new();
@@ -362,12 +403,14 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
         let forward_thinking =  10 ;
         p.forward_pathes_len = pathes.len() as i32;
 
-        if pathes.len() < depth as usize {
+        if pathes.len() < 4 * depth as usize {
             p.value -= forward_thinking;
             p.forward_thinking -= forward_thinking;
             p.forward_pathes = pathes;
         }
+        
     }
+
 }
 
 
@@ -395,11 +438,13 @@ pub struct Possible {
     check_heads: i32,
     kill_heads: i32,
     prefer_food: i32,
+    prefer_food_distance: i32,
     hit_or_leave: i32,
     look_for_tail: i32,
     forward_thinking: i32,
     forward_pathes: Vec<Path>,
     forward_pathes_len: i32,
+    prefer_forward_space: i32,
 
     rand: u8
 }
@@ -416,12 +461,14 @@ impl Possible {
             check_tails: 0,
             check_heads: 0,
             prefer_food: 0,
+            prefer_food_distance: 0,
             hit_or_leave: 0,
             look_for_tail: 0,
             forward_thinking: 0,
             kill_heads: 0,
             forward_pathes: Vec::new(),
             forward_pathes_len: 0,
+            prefer_forward_space: 0,
         }
     }
 }
@@ -479,7 +526,9 @@ enum TailType {
     SmallRattle
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq
+
+)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "move")]
 enum Move {
@@ -573,5 +622,43 @@ fn test() {
     let game = "{\"game\":{\"id\":\"36aab8cc-ee81-48e7-94f3-fe2e27c92abe\"},\"turn\":78,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":7,\"y\":0},{\"x\":9,\"y\":2},{\"x\":1,\"y\":1}],\"snakes\":[{\"id\":\"gs_WgVH9DYDyTDyJ3SvYMDtgWwB\",\"name\":\"lduchosal / charlesmanson-dev-online\",\"health\":98,\"body\":[{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":2,\"y\":6},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":7,\"y\":6}]}]},\"you\":{\"id\":\"gs_WgVH9DYDyTDyJ3SvYMDtgWwB\",\"name\":\"lduchosal / charlesmanson-dev-online\",\"health\":98,\"body\":[{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":2,\"y\":6},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":7,\"y\":6}]}}";
 
     play(game);
+
+}
+
+
+#[test]
+fn test_panic() {
+
+    let game = "{\"game\":{\"id\":\"3a7a940f-6790-457f-aaf2-bc6711915d24\"},\"turn\":520,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":10,\"y\":10},{\"x\":1,\"y\":0},{\"x\":6,\"y\":10},{\"x\":9,\"y\":4},{\"x\":8,\"y\":2},{\"x\":5,\"y\":8}],\"snakes\":[{\"id\":\"gs_JKthCR7JhDktSWp3gyGVhQGX\",\"name\":\"lduchosal / albertfish-dev\",\"health\":87,\"body\":[{\"x\":1,\"y\":5},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":2,\"y\":3},{\"x\":1,\"y\":3},{\"x\":1,\"y\":4},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":2,\"y\":6},{\"x\":2,\"y\":7},{\"x\":2,\"y\":8},{\"x\":1,\"y\":8},{\"x\":0,\"y\":8},{\"x\":0,\"y\":9},{\"x\":1,\"y\":9},{\"x\":2,\"y\":9},{\"x\":3,\"y\":9},{\"x\":3,\"y\":8},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":5},{\"x\":3,\"y\":4},{\"x\":3,\"y\":3},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":1,\"y\":2},{\"x\":0,\"y\":2},{\"x\":0,\"y\":1},{\"x\":1,\"y\":1},{\"x\":2,\"y\":1},{\"x\":3,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":7,\"y\":5},{\"x\":8,\"y\":5},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5}]}]},\"you\":{\"id\":\"gs_JKthCR7JhDktSWp3gyGVhQGX\",\"name\":\"lduchosal / albertfish-dev\",\"health\":87,\"body\":[{\"x\":1,\"y\":5},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":2,\"y\":3},{\"x\":1,\"y\":3},{\"x\":1,\"y\":4},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":2,\"y\":6},{\"x\":2,\"y\":7},{\"x\":2,\"y\":8},{\"x\":1,\"y\":8},{\"x\":0,\"y\":8},{\"x\":0,\"y\":9},{\"x\":1,\"y\":9},{\"x\":2,\"y\":9},{\"x\":3,\"y\":9},{\"x\":3,\"y\":8},{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":5},{\"x\":3,\"y\":4},{\"x\":3,\"y\":3},{\"x\":3,\"y\":2},{\"x\":2,\"y\":2},{\"x\":1,\"y\":2},{\"x\":0,\"y\":2},{\"x\":0,\"y\":1},{\"x\":1,\"y\":1},{\"x\":2,\"y\":1},{\"x\":3,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":2},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":7,\"y\":5},{\"x\":8,\"y\":5},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5}]}}";
+    play(game);
+
+}
+
+#[test]
+fn test_food() {
+
+    let game = "{\"game\":{\"id\":\"55cbf87a-3bf5-4137-b985-4d3c38ebe69b\"},\"turn\":15,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":2,\"y\":4},{\"x\":3,\"y\":9}],\"snakes\":[{\"id\":\"gs_CmFXRMdmvxkkjYm6QtDxVYbG\",\"name\":\"s4-ricky / Turing Snake\",\"health\":100,\"body\":[{\"x\":5,\"y\":2},{\"x\":5,\"y\":1},{\"x\":5,\"y\":0},{\"x\":4,\"y\":0},{\"x\":4,\"y\":1},{\"x\":4,\"y\":1}]},{\"id\":\"gs_gq3RmBrWXfjGqy9yyGCyqkMR\",\"name\":\"chunthebear / Behir\",\"health\":100,\"body\":[{\"x\":6,\"y\":9},{\"x\":7,\"y\":9},{\"x\":8,\"y\":9},{\"x\":9,\"y\":9},{\"x\":9,\"y\":8},{\"x\":9,\"y\":8}]},{\"id\":\"gs_bHSkfffHVxqCfW8XHtdvfTjT\",\"name\":\"tagg7 / SNAKEFACE 2.0\",\"health\":98,\"body\":[{\"x\":5,\"y\":10},{\"x\":6,\"y\":10},{\"x\":7,\"y\":10},{\"x\":8,\"y\":10}]},{\"id\":\"gs_hV4fwPtH6RCCkDdqgfSFWTgK\",\"name\":\"lduchosal / albertfish-dev\",\"health\":85,\"body\":[{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5}]}]},\"you\":{\"id\":\"gs_hV4fwPtH6RCCkDdqgfSFWTgK\",\"name\":\"lduchosal / albertfish-dev\",\"health\":85,\"body\":[{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5}]}}";
+    play(game);
+
+}
+
+
+#[test]
+fn test_food_bug() {
+
+    let game = "{\"game\":{\"id\":\"d395766e-f411-4800-8184-0be8aa35d6ae\"},\"turn\":432,\"board\":{\"height\":19,\"width\":19,\"food\":[{\"x\":3,\"y\":13},{\"x\":1,\"y\":9},{\"x\":1,\"y\":15},{\"x\":1,\"y\":14}],\"snakes\":[{\"id\":\"gs_BdRKFSDS8SMFkfTpSxhTGpCF\",\"name\":\"lduchosal / albertfish-dev\",\"health\":90,\"body\":[{\"x\":9,\"y\":11},{\"x\":8,\"y\":11},{\"x\":8,\"y\":12},{\"x\":8,\"y\":13},{\"x\":9,\"y\":13},{\"x\":10,\"y\":13},{\"x\":10,\"y\":12},{\"x\":10,\"y\":11},{\"x\":11,\"y\":11},{\"x\":12,\"y\":11},{\"x\":13,\"y\":11},{\"x\":13,\"y\":12},{\"x\":12,\"y\":12},{\"x\":12,\"y\":13},{\"x\":11,\"y\":13},{\"x\":11,\"y\":14},{\"x\":10,\"y\":14},{\"x\":10,\"y\":15},{\"x\":9,\"y\":15},{\"x\":8,\"y\":15},{\"x\":8,\"y\":16},{\"x\":8,\"y\":17},{\"x\":7,\"y\":17},{\"x\":7,\"y\":16},{\"x\":7,\"y\":15},{\"x\":7,\"y\":14},{\"x\":7,\"y\":13},{\"x\":7,\"y\":12},{\"x\":7,\"y\":11},{\"x\":7,\"y\":10},{\"x\":8,\"y\":10},{\"x\":8,\"y\":9},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":9,\"y\":7},{\"x\":10,\"y\":7},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":11,\"y\":4},{\"x\":12,\"y\":4}]}]},\"you\":{\"id\":\"gs_BdRKFSDS8SMFkfTpSxhTGpCF\",\"name\":\"lduchosal / albertfish-dev\",\"health\":90,\"body\":[{\"x\":9,\"y\":11},{\"x\":8,\"y\":11},{\"x\":8,\"y\":12},{\"x\":8,\"y\":13},{\"x\":9,\"y\":13},{\"x\":10,\"y\":13},{\"x\":10,\"y\":12},{\"x\":10,\"y\":11},{\"x\":11,\"y\":11},{\"x\":12,\"y\":11},{\"x\":13,\"y\":11},{\"x\":13,\"y\":12},{\"x\":12,\"y\":12},{\"x\":12,\"y\":13},{\"x\":11,\"y\":13},{\"x\":11,\"y\":14},{\"x\":10,\"y\":14},{\"x\":10,\"y\":15},{\"x\":9,\"y\":15},{\"x\":8,\"y\":15},{\"x\":8,\"y\":16},{\"x\":8,\"y\":17},{\"x\":7,\"y\":17},{\"x\":7,\"y\":16},{\"x\":7,\"y\":15},{\"x\":7,\"y\":14},{\"x\":7,\"y\":13},{\"x\":7,\"y\":12},{\"x\":7,\"y\":11},{\"x\":7,\"y\":10},{\"x\":8,\"y\":10},{\"x\":8,\"y\":9},{\"x\":8,\"y\":8},{\"x\":8,\"y\":7},{\"x\":9,\"y\":7},{\"x\":10,\"y\":7},{\"x\":11,\"y\":7},{\"x\":11,\"y\":6},{\"x\":11,\"y\":5},{\"x\":11,\"y\":4},{\"x\":12,\"y\":4}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+
+}
+
+#[test]
+fn test_food_distance() {
+
+    let game = "{\"game\":{\"id\":\"e2e2f508-e1a4-452c-b33b-b053b3f8b217\"},\"turn\":0,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":10,\"y\":4}],\"snakes\":[{\"id\":\"gs_VJb3DHBtw8fdBVMv4KTFG3YV\",\"name\":\"lduchosal / albertfish-dev\",\"health\":100,\"body\":[{\"x\":1,\"y\":1},{\"x\":1,\"y\":1},{\"x\":1,\"y\":1}]}]},\"you\":{\"id\":\"gs_VJb3DHBtw8fdBVMv4KTFG3YV\",\"name\":\"lduchosal / albertfish-dev\",\"health\":100,\"body\":[{\"x\":1,\"y\":1},{\"x\":1,\"y\":1},{\"x\":1,\"y\":1}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Right);
 
 }
