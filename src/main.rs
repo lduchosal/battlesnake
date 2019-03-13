@@ -12,9 +12,9 @@ fn main() {
 
     let home = "6601";
     let train = "6600";
-    let albertfish = "6611";
+    let robnox = "6612";
 
-    let server = Server::http(format!("0.0.0.0:{}", home)).unwrap();
+    let server = Server::http(format!("0.0.0.0:{}", robnox)).unwrap();
 
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
@@ -140,7 +140,7 @@ fn dump_results(possibles: &Vec<Possible>) {
 
 fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
 
-    let wall = 20;
+    let wall = 100;
     for p in possibles {
 
         let mut check_walls = 0;
@@ -192,7 +192,7 @@ fn prefer_food_distance(_: &Game, ps: &mut Vec<Possible>) {
     ps.sort_by(|a, b| a.prefer_food_distance.cmp(&b.prefer_food_distance));
     let total : f32 = ps.iter().map(|item| 1.0_f32 / item.prefer_food_distance as f32).sum();
 
-    let value = 10;
+    let value = 30;
     for p in ps {
         let assigned = ((value as f32 * (1.0_f32 / p.prefer_food_distance as f32)) / total) as i32 ;
         p.value += assigned;
@@ -233,7 +233,7 @@ fn look_for_tail(game: &Game, possibles: &mut Vec<Possible>) {
 
 fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
-    let check_snakes = 20;
+    let check_snakes = 100;
 
     for p in possibles {
         for s in &game.board.snakes {
@@ -249,7 +249,7 @@ fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
 
 fn check_tails(game: &Game, possibles: &mut Vec<Possible>) {
 
-    let check_tails = 10;
+    let check_tails = 100;
 
     for p in possibles {
         for s in &game.board.snakes {
