@@ -12,9 +12,9 @@ fn main() {
 
     let home = "6601";
     let train = "6600";
-    let robnox = "6612";
+    let roblees = "6613";
 
-    let server = Server::http(format!("0.0.0.0:{}", robnox)).unwrap();
+    let server = Server::http(format!("0.0.0.0:{}", home)).unwrap();
 
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
@@ -192,7 +192,7 @@ fn prefer_food_distance(_: &Game, ps: &mut Vec<Possible>) {
     ps.sort_by(|a, b| a.prefer_food_distance.cmp(&b.prefer_food_distance));
     let total : f32 = ps.iter().map(|item| 1.0_f32 / item.prefer_food_distance as f32).sum();
 
-    let value = 30;
+    let value = 25;
     for p in ps {
         let assigned = ((value as f32 * (1.0_f32 / p.prefer_food_distance as f32)) / total) as i32 ;
         p.value += assigned;
@@ -238,7 +238,7 @@ fn check_snakes(game: &Game, possibles: &mut Vec<Possible>) {
     for p in possibles {
         for s in &game.board.snakes {
             for b in &s.body {
-                if p.point == *b {
+                if p.point.eq(b) {
                     p.value -= check_snakes ;
                     p.check_snakes -= check_snakes;
                 }
@@ -350,6 +350,16 @@ fn prefer_forward_space(_: &Game, ps: &mut Vec<Possible>) {
 
 }
 
+fn append_point_me(futur: &mut Game, point: &Point) {
+
+    for snake in &mut futur.board.snakes {
+        if &snake.id == &futur.you.id {
+            snake.body.insert(0, point.clone());
+            futur.you = snake.clone();
+        }
+    }
+}
+
 fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
     for p in ps {
@@ -364,6 +374,8 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
         let root = Path { point: p.point.clone(), level: 0 };
         pathes.push(root);
 
+
+
         for level in 0..depth {
 
 
@@ -374,10 +386,15 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
             let level_pathes = find_pathes(&pathes, level);
             for path in &level_pathes {
+                append_point_me(&mut futur, &path.point);
+            }
+
+            for path in &level_pathes {
 
                 let mut fps = possibles(&path.point);
                 check_walls(&futur, &mut fps);
                 check_snakes(&futur, &mut fps);
+                check_tails(&futur, &mut fps);
 
                 for fp in fps {
                     if fp.value > 0 {
@@ -388,19 +405,9 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
             }
 
-            for snake in &mut futur.board.snakes {
-                if &snake.id == &futur.you.id {
-
-                    for path in &level_pathes {
-                        snake.body.push(path.point.clone());
-                    }
-                    futur.you = snake.clone();
-                }
-            }
-
         }
 
-        let forward_thinking =  10 ;
+        let forward_thinking =  15 ;
         p.forward_pathes_len = pathes.len() as i32;
 
         if pathes.len() < 4 * depth as usize {
@@ -660,5 +667,28 @@ fn test_food_distance() {
     let next = play(game);
 
     assert_eq!(next, Move::Right);
+
+}
+
+
+#[test]
+fn test_too_hungry() {
+
+    let game = "{\"game\":{\"id\":\"068a60c3-41f9-4801-bb1b-0b29bcad580c\"},\"turn\":62,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":7,\"y\":10},{\"x\":2,\"y\":7}],\"snakes\":[{\"id\":\"gs_MY3MPw9d7YMwddqmpxMCk3BY\",\"name\":\"tmastrom / tommy_yum\",\"health\":98,\"body\":[{\"x\":10,\"y\":4},{\"x\":10,\"y\":3},{\"x\":10,\"y\":2},{\"x\":10,\"y\":1},{\"x\":9,\"y\":1},{\"x\":9,\"y\":0},{\"x\":8,\"y\":0},{\"x\":7,\"y\":0},{\"x\":6,\"y\":0}]},{\"id\":\"gs_Px7dBQ88xqmXHMjKqDxftWm9\",\"name\":\"CyrusSA / Jah-Snake\",\"health\":100,\"body\":[{\"x\":8,\"y\":10},{\"x\":8,\"y\":9},{\"x\":8,\"y\":8},{\"x\":9,\"y\":8},{\"x\":9,\"y\":8}]},{\"id\":\"gs_d8qRXT3JtWf3HywSVcXMMXb7\",\"name\":\"CptMayday / One Snek - Two Snek\",\"health\":94,\"body\":[{\"x\":3,\"y\":3},{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5}]},{\"id\":\"gs_cJP96brgg6PYx8gC6KxWjbqT\",\"name\":\"lduchosal / robknox-0.12\",\"health\":100,\"body\":[{\"x\":7,\"y\":9},{\"x\":6,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":10},{\"x\":4,\"y\":10},{\"x\":3,\"y\":10},{\"x\":2,\"y\":10},{\"x\":2,\"y\":10}]}]},\"you\":{\"id\":\"gs_cJP96brgg6PYx8gC6KxWjbqT\",\"name\":\"lduchosal / robknox-0.12\",\"health\":100,\"body\":[{\"x\":7,\"y\":9},{\"x\":6,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":10},{\"x\":4,\"y\":10},{\"x\":3,\"y\":10},{\"x\":2,\"y\":10},{\"x\":2,\"y\":10}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+
+
+}
+
+#[test]
+fn test_too_keep_on_following_tail() {
+
+    let game = "{\"game\":{\"id\":\"ea6e9712-b306-4526-a34d-180e1beaa42a\"},\"turn\":907,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":7,\"y\":9},{\"x\":7,\"y\":2},{\"x\":9,\"y\":2}],\"snakes\":[{\"id\":\"gs_hCwhtHpy8RTkrJh7M464BX8P\",\"name\":\"lduchosal / robknox-dev\",\"health\":99,\"body\":[{\"x\":10,\"y\":9},{\"x\":9,\"y\":9},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":10,\"y\":6},{\"x\":10,\"y\":5},{\"x\":9,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":4},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":9,\"y\":4},{\"x\":10,\"y\":4},{\"x\":10,\"y\":3},{\"x\":10,\"y\":2},{\"x\":10,\"y\":1},{\"x\":10,\"y\":0},{\"x\":9,\"y\":0},{\"x\":8,\"y\":0},{\"x\":7,\"y\":0},{\"x\":7,\"y\":1},{\"x\":6,\"y\":1},{\"x\":5,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":0},{\"x\":3,\"y\":0},{\"x\":2,\"y\":0},{\"x\":2,\"y\":1},{\"x\":2,\"y\":2},{\"x\":2,\"y\":3},{\"x\":3,\"y\":3},{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":7},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":1,\"y\":4},{\"x\":1,\"y\":3},{\"x\":1,\"y\":2},{\"x\":1,\"y\":1},{\"x\":1,\"y\":0},{\"x\":0,\"y\":0},{\"x\":0,\"y\":1},{\"x\":0,\"y\":2},{\"x\":0,\"y\":3},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":1,\"y\":7},{\"x\":1,\"y\":8},{\"x\":2,\"y\":8},{\"x\":3,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":9},{\"x\":3,\"y\":9},{\"x\":3,\"y\":10},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":5,\"y\":7},{\"x\":6,\"y\":7},{\"x\":6,\"y\":6},{\"x\":6,\"y\":5},{\"x\":6,\"y\":4},{\"x\":5,\"y\":4},{\"x\":5,\"y\":3},{\"x\":6,\"y\":3},{\"x\":7,\"y\":3},{\"x\":7,\"y\":4},{\"x\":7,\"y\":5},{\"x\":7,\"y\":6},{\"x\":7,\"y\":7},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":9,\"y\":10},{\"x\":10,\"y\":10}]}]},\"you\":{\"id\":\"gs_hCwhtHpy8RTkrJh7M464BX8P\",\"name\":\"lduchosal / robknox-dev\",\"health\":99,\"body\":[{\"x\":10,\"y\":9},{\"x\":9,\"y\":9},{\"x\":9,\"y\":8},{\"x\":9,\"y\":7},{\"x\":9,\"y\":6},{\"x\":10,\"y\":6},{\"x\":10,\"y\":5},{\"x\":9,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":4},{\"x\":8,\"y\":3},{\"x\":9,\"y\":3},{\"x\":9,\"y\":4},{\"x\":10,\"y\":4},{\"x\":10,\"y\":3},{\"x\":10,\"y\":2},{\"x\":10,\"y\":1},{\"x\":10,\"y\":0},{\"x\":9,\"y\":0},{\"x\":8,\"y\":0},{\"x\":7,\"y\":0},{\"x\":7,\"y\":1},{\"x\":6,\"y\":1},{\"x\":5,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":0},{\"x\":3,\"y\":0},{\"x\":2,\"y\":0},{\"x\":2,\"y\":1},{\"x\":2,\"y\":2},{\"x\":2,\"y\":3},{\"x\":3,\"y\":3},{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":7},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":1,\"y\":4},{\"x\":1,\"y\":3},{\"x\":1,\"y\":2},{\"x\":1,\"y\":1},{\"x\":1,\"y\":0},{\"x\":0,\"y\":0},{\"x\":0,\"y\":1},{\"x\":0,\"y\":2},{\"x\":0,\"y\":3},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":1,\"y\":6},{\"x\":1,\"y\":7},{\"x\":1,\"y\":8},{\"x\":2,\"y\":8},{\"x\":3,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":9},{\"x\":3,\"y\":9},{\"x\":3,\"y\":10},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":5,\"y\":7},{\"x\":6,\"y\":7},{\"x\":6,\"y\":6},{\"x\":6,\"y\":5},{\"x\":6,\"y\":4},{\"x\":5,\"y\":4},{\"x\":5,\"y\":3},{\"x\":6,\"y\":3},{\"x\":7,\"y\":3},{\"x\":7,\"y\":4},{\"x\":7,\"y\":5},{\"x\":7,\"y\":6},{\"x\":7,\"y\":7},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":9,\"y\":10},{\"x\":10,\"y\":10}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Down);
+
 
 }
