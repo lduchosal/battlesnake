@@ -1,8 +1,9 @@
+#![feature(try_trait)]
+
 extern crate tiny_http;
 extern crate serde_json;
 extern crate rand;
 
-// import commonly used items from the prelude:
 use rand::prelude::*;
 
 use serde::{Deserialize, Serialize};
@@ -94,9 +95,12 @@ fn play(content: &str) -> Move {
     hit_or_leave(&g, &mut possibles);
     prefer_food(&g, &mut possibles);
     prefer_food_distance(&g, &mut possibles);
+    eat_my_food(&g, &mut possibles);
     look_for_tail(&g, &mut possibles);
     forward_thinking(&g, &mut possibles, 10);
     prefer_forward_space(&g, &mut possibles);
+
+    (&g, &mut possibles);
 
     dump_results(&possibles);
     best_fit(&mut possibles)
@@ -161,6 +165,115 @@ fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
         p.value += check_walls;
         p.check_walls = check_walls;
     }
+
+}
+
+
+
+#[test]
+fn test_mange_la_pomme() {
+
+    let game = "{\"game\":{\"id\":\"91ebc415-da16-4c8b-b8aa-feedb74f0040\"},\"turn\":88,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":3,\"y\":0}],\"snakes\":[{\"id\":\"gs_G73RbQqT94r3fkMwPXpYYQWX\",\"name\":\"xm-evanguo / pinkpinkpenguin\",\"health\":96,\"body\":[{\"x\":8,\"y\":8},{\"x\":8,\"y\":9},{\"x\":9,\"y\":9},{\"x\":9,\"y\":8},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":9,\"y\":7},{\"x\":8,\"y\":7}]},{\"id\":\"gs_j6TBPGM74PyrxjHk6FMf4xmW\",\"name\":\"robbles / ROB 2018\",\"health\":75,\"body\":[{\"x\":3,\"y\":9},{\"x\":3,\"y\":10},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":6,\"y\":10},{\"x\":7,\"y\":10},{\"x\":7,\"y\":9},{\"x\":6,\"y\":9}]},{\"id\":\"gs_hMxC94hH8qtJbbFMXWJ9fc8M\",\"name\":\"neovas / hissin-bastid\",\"health\":77,\"body\":[{\"x\":7,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":4},{\"x\":7,\"y\":4}]},{\"id\":\"gs_gR4MvwQJMBMBfBfYm7pdmp7S\",\"name\":\"lduchosal / boblee-0.13\",\"health\":97,\"body\":[{\"x\":3,\"y\":3},{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":4,\"y\":5},{\"x\":4,\"y\":4}]}]},\"you\":{\"id\":\"gs_gR4MvwQJMBMBfBfYm7pdmp7S\",\"name\":\"lduchosal / boblee-0.13\",\"health\":97,\"body\":[{\"x\":3,\"y\":3},{\"x\":3,\"y\":4},{\"x\":3,\"y\":5},{\"x\":3,\"y\":6},{\"x\":4,\"y\":6},{\"x\":4,\"y\":5},{\"x\":4,\"y\":4}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+
+}
+
+#[test]
+fn test_mange_la_pomme_2() {
+
+    let game = "{\"game\":{\"id\":\"c896dce2-77ac-4380-9ec4-ca5869935590\"},\"turn\":43,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":5,\"y\":3},{\"x\":6,\"y\":3},{\"x\":9,\"y\":0}],\"snakes\":[{\"id\":\"gs_YM33Y3QDBrmjSWKhdgMwvK8C\",\"name\":\"woofers / 🐍  \u{200f}\u{200f}\u{200e} 𝙎𝙐𝙋𝙀𝙍 𝙎𝙇𝙄𝙈𝙀𝙔   \u{200f}\u{200f}\u{200e} 🐍\",\"health\":92,\"body\":[{\"x\":2,\"y\":5},{\"x\":3,\"y\":5},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":4,\"y\":7},{\"x\":4,\"y\":8},{\"x\":3,\"y\":8}]},{\"id\":\"gs_ccdvBRRHvcWQW8hjpS6hrYjP\",\"name\":\"xtagon / Nagini\",\"health\":75,\"body\":[{\"x\":8,\"y\":7},{\"x\":7,\"y\":7},{\"x\":7,\"y\":6},{\"x\":6,\"y\":6},{\"x\":6,\"y\":5},{\"x\":7,\"y\":5}]},{\"id\":\"gs_MRc6wbw8Hd4fGjSbghptJfx3\",\"name\":\"lduchosal / boblee-0.13\",\"health\":92,\"body\":[{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":5,\"y\":5},{\"x\":5,\"y\":6},{\"x\":5,\"y\":7}]},{\"id\":\"gs_dMrW7xTrxV6JYpDTS3XPhxhC\",\"name\":\"jhawthorn / Git Adder (experimental)\",\"health\":77,\"body\":[{\"x\":9,\"y\":4},{\"x\":10,\"y\":4},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":9,\"y\":6}]},{\"id\":\"gs_fwbXBmvyVwjRFwqDMYBtKdv9\",\"name\":\"jonknoll / Schneider Electric Schnake\",\"health\":99,\"body\":[{\"x\":2,\"y\":3},{\"x\":2,\"y\":4},{\"x\":3,\"y\":4},{\"x\":3,\"y\":3}]}]},\"you\":{\"id\":\"gs_MRc6wbw8Hd4fGjSbghptJfx3\",\"name\":\"lduchosal / boblee-0.13\",\"health\":92,\"body\":[{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":5,\"y\":4},{\"x\":5,\"y\":5},{\"x\":5,\"y\":6},{\"x\":5,\"y\":7}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Right);
+
+}
+
+#[test]
+fn test_mange_la_pomme_3() {
+
+    let game = "{\"game\":{\"id\":\"11b09dfd-3e16-4106-9cf3-081a4364efae\"},\"turn\":34,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":0,\"y\":2},{\"x\":8,\"y\":1},{\"x\":5,\"y\":2}],\"snakes\":[{\"id\":\"gs_DSk7h6mdpxMwY7SjSGRHgYxF\",\"name\":\"duncmac16 / ProtoFeist\",\"health\":82,\"body\":[{\"x\":1,\"y\":1},{\"x\":2,\"y\":1},{\"x\":3,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":2}]},{\"id\":\"gs_xXCmCWqdThFXPr8M9DjpYr6C\",\"name\":\"KyleDBoyd / k-snek\",\"health\":83,\"body\":[{\"x\":6,\"y\":8},{\"x\":7,\"y\":8},{\"x\":8,\"y\":8},{\"x\":9,\"y\":8},{\"x\":9,\"y\":9}]},{\"id\":\"gs_KrRQ6WqRbkDKvSHp4qFgpdyc\",\"name\":\"DevYves / snakey\",\"health\":70,\"body\":[{\"x\":3,\"y\":7},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":3,\"y\":6},{\"x\":2,\"y\":6}]},{\"id\":\"gs_q4h3S7jrrYGkTbg4T7ThSS9F\",\"name\":\"jonknoll / LeechySnake2018\",\"health\":92,\"body\":[{\"x\":4,\"y\":4},{\"x\":4,\"y\":5},{\"x\":5,\"y\":5},{\"x\":5,\"y\":4},{\"x\":5,\"y\":3},{\"x\":6,\"y\":3}]},{\"id\":\"gs_4Dwv3KX3GyVqvFcMY9htFXrB\",\"name\":\"lduchosal / boblee-0.13\",\"health\":66,\"body\":[{\"x\":8,\"y\":4},{\"x\":8,\"y\":5},{\"x\":7,\"y\":5}]},{\"id\":\"gs_C7bRvW4WmM7DBGMr6QhJ43VR\",\"name\":\"prplz / blockchain snake\",\"health\":92,\"body\":[{\"x\":7,\"y\":7},{\"x\":8,\"y\":7},{\"x\":9,\"y\":7},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":10,\"y\":5}]}]},\"you\":{\"id\":\"gs_4Dwv3KX3GyVqvFcMY9htFXrB\",\"name\":\"lduchosal / boblee-0.13\",\"health\":66,\"body\":[{\"x\":8,\"y\":4},{\"x\":8,\"y\":5},{\"x\":7,\"y\":5}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+
+}
+
+struct Error {}
+
+impl From<std::option::NoneError> for Error {
+
+    fn from(n: std::option::NoneError) -> Self {
+        Error {}
+    }
+}
+
+fn eat_my_food(game: &Game, ps: &mut Vec<Possible>) -> Result<(), Error> {
+
+
+    let eat_my_food_value = 5;
+
+    for food in &game.board.food {
+
+        let mut distances = Vec::new();
+
+        for snake in &game.board.snakes {
+
+            let head = &snake.body.first()?;
+            let distancex = (head.x as i32 - food.x as i32).abs();
+            let distancey = (head.y as i32 - food.y as i32).abs();
+
+            let distance = distancex + distancey;
+
+            distances.push((distance, snake));
+        }
+
+        distances.sort_by(|a,b| a.0.cmp(&b.0));
+        let min = distances.first()?.0;
+        distances.retain(|&x| x.0 == min);
+        
+        if distances.len() == 1
+            && distances.first()?.1.id == game.you.id {
+            
+            let you = game.you.body.first()?;
+
+            let left = you.x as i32 - food.x as i32 > 0;
+            let right = food.x as i32 - you.x as i32 > 0;
+            let up = you.y as i32 - food.y as i32 > 0;
+            let down = food.y as i32 - you.y as i32 > 0;
+
+            for p in ps.iter_mut() {
+
+                if p.dir == Move::Up && up {
+                    p.eat_my_food += 1;
+                    p.eat_my_food_value += eat_my_food_value;
+                    p.value += eat_my_food_value;
+                }
+
+                if p.dir == Move::Down && down {
+                    p.eat_my_food += 1;
+                    p.eat_my_food_value += eat_my_food_value;
+                    p.value += eat_my_food_value;
+                }
+
+                if p.dir == Move::Left && left {
+                    p.eat_my_food += 1;
+                    p.eat_my_food_value += eat_my_food_value;
+                    p.value += eat_my_food_value;
+                }
+
+                if p.dir == Move::Right && right {
+                    p.eat_my_food += 1;
+                    p.eat_my_food_value += eat_my_food_value;
+                    p.value += eat_my_food_value;
+                }
+            }
+
+        }
+    }
+
+    Ok(())
 
 }
 
@@ -446,6 +559,8 @@ pub struct Possible {
     kill_heads: i32,
     prefer_food: i32,
     prefer_food_distance: i32,
+    eat_my_food_value: i32,
+    eat_my_food: i32,
     hit_or_leave: i32,
     look_for_tail: i32,
     forward_thinking: i32,
@@ -469,6 +584,8 @@ impl Possible {
             check_heads: 0,
             prefer_food: 0,
             prefer_food_distance: 0,
+            eat_my_food_value: 0,
+            eat_my_food: 0,
             hit_or_leave: 0,
             look_for_tail: 0,
             forward_thinking: 0,
@@ -690,5 +807,5 @@ fn test_too_keep_on_following_tail() {
 
     assert_eq!(next, Move::Down);
 
-
 }
+
