@@ -1,6 +1,6 @@
 # Implemented features
 
-## Mange la pomme
+## Mange la pomme (kinjong)
 
 - Plus gourmand, ne pas tourner en rond
 - Aller manger la pomme pour laquelle you est le plus près.
