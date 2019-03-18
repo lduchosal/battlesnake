@@ -76,3 +76,9 @@ Ne pas déduire la queue des snakes qui mangent une pomme
 ## Neural network
 
 Tuner les poids de chaque action avec un réseau neuronal / algorythmes génétiques
+
+## Bug
+
+https://play.battlesnake.io/g/1a892e73-c901-4522-89a5-95f0af812a17/
+
+    Tour 5, attaque un serpent plus gros !
