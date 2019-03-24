@@ -1,6 +1,5 @@
 # Better snake
 
-
 ## Snap a snake
 
 - Attraper un serpent  (plus grand ou plus petit dans un piège.
@@ -63,6 +62,10 @@ https://stackoverflow.com/questions/32999136/perfect-snake-ai#33003391
 ## Utilise la place à disposition
 
 Dans un espace clos, utiliser la place à disposition au maximum avec la queue comme porte de sortie
+
+https://play.battlesnake.io/g/d770c179-7f52-45e3-bf85-288345f7a359/
+
+    Turn 258, dérouler le serpent au maximum pour sortir du piège.
 
 ## Psychanalyse les snake
 

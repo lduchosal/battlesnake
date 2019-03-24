@@ -5,6 +5,8 @@ extern crate serde_json;
 extern crate rand;
 
 use rand::prelude::*;
+use std::collections::HashSet;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -13,9 +15,9 @@ fn main() {
 
     let home = "6601";
     let train = "6600";
-    let kimjon = "6614";
+    let laurabush = "6615";
 
-    let server = Server::http(format!("0.0.0.0:{}", kimjon)).unwrap();
+    let server = Server::http(format!("0.0.0.0:{}", laurabush)).unwrap();
 
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
@@ -97,8 +99,10 @@ fn play(content: &str) -> Move {
     prefer_food_distance(&g, &mut possibles);
     eat_my_food(&g, &mut possibles);
     look_for_tail(&g, &mut possibles);
-    forward_thinking(&g, &mut possibles, 10);
+    forward_thinking(&g, &mut possibles, 30);
     prefer_forward_space(&g, &mut possibles);
+    hunt_snakes(&g, &mut possibles);
+    enroule_ton_snake(&g, &mut possibles);
 
     (&g, &mut possibles);
 
@@ -214,6 +218,8 @@ fn eat_my_food(game: &Game, ps: &mut Vec<Possible>) -> Result<(), Error> {
 
     let eat_my_food_value = 5;
 
+    let mut nearest_my_food = Vec::new();
+
     for food in &game.board.food {
 
         let mut distances = Vec::new();
@@ -235,47 +241,63 @@ fn eat_my_food(game: &Game, ps: &mut Vec<Possible>) -> Result<(), Error> {
         
         if distances.len() == 1
             && distances.first()?.1.id == game.you.id {
-            
-            let you = game.you.body.first()?;
+            nearest_my_food.push((distances.first()?.0, food));
+        }
 
-            let left = you.x as i32 - food.x as i32 > 0;
-            let right = food.x as i32 - you.x as i32 > 0;
-            let up = you.y as i32 - food.y as i32 > 0;
-            let down = food.y as i32 - you.y as i32 > 0;
+    }
 
-            for p in ps.iter_mut() {
+    nearest_my_food.sort_by(|a,b| a.0.cmp(&b.0));
+    let food = nearest_my_food.first()?.1;
 
-                if p.dir == Move::Up && up {
-                    p.eat_my_food += 1;
-                    p.eat_my_food_value += eat_my_food_value;
-                    p.value += eat_my_food_value;
-                }
+    let you = game.you.body.first()?;
 
-                if p.dir == Move::Down && down {
-                    p.eat_my_food += 1;
-                    p.eat_my_food_value += eat_my_food_value;
-                    p.value += eat_my_food_value;
-                }
+    let left = you.x as i32 - food.x as i32 > 0;
+    let right = food.x as i32 - you.x as i32 > 0;
+    let up = you.y as i32 - food.y as i32 > 0;
+    let down = food.y as i32 - you.y as i32 > 0;
 
-                if p.dir == Move::Left && left {
-                    p.eat_my_food += 1;
-                    p.eat_my_food_value += eat_my_food_value;
-                    p.value += eat_my_food_value;
-                }
+    for p in ps.iter_mut() {
 
-                if p.dir == Move::Right && right {
-                    p.eat_my_food += 1;
-                    p.eat_my_food_value += eat_my_food_value;
-                    p.value += eat_my_food_value;
-                }
-            }
+        if p.dir == Move::Up && up {
+            p.eat_my_food += 1;
+            p.eat_my_food_value += eat_my_food_value;
+            p.value += eat_my_food_value;
+        }
 
+        if p.dir == Move::Down && down {
+            p.eat_my_food += 1;
+            p.eat_my_food_value += eat_my_food_value;
+            p.value += eat_my_food_value;
+        }
+
+        if p.dir == Move::Left && left {
+            p.eat_my_food += 1;
+            p.eat_my_food_value += eat_my_food_value;
+            p.value += eat_my_food_value;
+        }
+
+        if p.dir == Move::Right && right {
+            p.eat_my_food += 1;
+            p.eat_my_food_value += eat_my_food_value;
+            p.value += eat_my_food_value;
         }
     }
 
     Ok(())
 
 }
+
+
+
+#[test]
+fn test_eat_my_snake() {
+
+    let game ="{\"game\":{\"id\":\"3f5918e3-d5f6-4542-b63d-5de9298843be\"},\"turn\":374,\"board\":{\"height\":19,\"width\":19,\"food\":[{\"x\":2,\"y\":1},{\"x\":3,\"y\":16},{\"x\":10,\"y\":2},{\"x\":2,\"y\":12},{\"x\":16,\"y\":18},{\"x\":15,\"y\":4},{\"x\":18,\"y\":7},{\"x\":17,\"y\":2},{\"x\":1,\"y\":17},{\"x\":16,\"y\":17},{\"x\":1,\"y\":7},{\"x\":2,\"y\":16},{\"x\":13,\"y\":4},{\"x\":10,\"y\":5},{\"x\":14,\"y\":15},{\"x\":5,\"y\":17},{\"x\":18,\"y\":12},{\"x\":2,\"y\":7},{\"x\":14,\"y\":3},{\"x\":4,\"y\":1},{\"x\":7,\"y\":5}],\"snakes\":[{\"id\":\"gs_ykHTrtwyjgf7f9mKTGPgRMSM\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":4,\"body\":[{\"x\":10,\"y\":6},{\"x\":11,\"y\":6},{\"x\":12,\"y\":6},{\"x\":13,\"y\":6},{\"x\":14,\"y\":6},{\"x\":14,\"y\":7},{\"x\":14,\"y\":8},{\"x\":14,\"y\":9},{\"x\":14,\"y\":10},{\"x\":14,\"y\":11},{\"x\":13,\"y\":11},{\"x\":13,\"y\":12},{\"x\":12,\"y\":12},{\"x\":12,\"y\":11},{\"x\":12,\"y\":10},{\"x\":13,\"y\":10},{\"x\":13,\"y\":9},{\"x\":12,\"y\":9},{\"x\":12,\"y\":8}]}]},\"you\":{\"id\":\"gs_ykHTrtwyjgf7f9mKTGPgRMSM\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":4,\"body\":[{\"x\":10,\"y\":6},{\"x\":11,\"y\":6},{\"x\":12,\"y\":6},{\"x\":13,\"y\":6},{\"x\":14,\"y\":6},{\"x\":14,\"y\":7},{\"x\":14,\"y\":8},{\"x\":14,\"y\":9},{\"x\":14,\"y\":10},{\"x\":14,\"y\":11},{\"x\":13,\"y\":11},{\"x\":13,\"y\":12},{\"x\":12,\"y\":12},{\"x\":12,\"y\":11},{\"x\":12,\"y\":10},{\"x\":13,\"y\":10},{\"x\":13,\"y\":9},{\"x\":12,\"y\":9},{\"x\":12,\"y\":8}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+}
+
 
 fn prefer_food(game: &Game, ps: &mut Vec<Possible>) {
 
@@ -451,7 +473,7 @@ fn prefer_forward_space(_: &Game, ps: &mut Vec<Possible>) {
     ps.sort_by(|a, b| a.forward_pathes_len.cmp(&b.forward_pathes_len));
     let total : i32 = ps.iter().map(|item| item.forward_pathes_len).sum();
 
-    let value = 10;
+    let value = 20;
     for p in ps {
         if total <= 0 {
             continue;
@@ -482,15 +504,12 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
         }
 
         let mut futur = game.clone();
-        let mut pathes = Vec::<Path>::new();
+        let mut pathes = HashSet::new();
 
         let root = Path { point: p.point.clone(), level: 0 };
-        pathes.push(root);
-
-
+        pathes.insert(root);
 
         for level in 0..depth {
-
 
             for snake in &mut futur.board.snakes {
                 snake.body.pop();
@@ -512,7 +531,7 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
                 for fp in fps {
                     if fp.value > 0 {
                         let path = Path { point: fp.point.clone(), level: level +1 };
-                        pathes.push(path);
+                        pathes.insert(path);
                     }
                 }
 
@@ -520,7 +539,7 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
         }
 
-        let forward_thinking =  15 ;
+        let forward_thinking =  30  ; // 15
         p.forward_pathes_len = pathes.len() as i32;
 
         if pathes.len() < 4 * depth as usize {
@@ -533,18 +552,90 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
 
 }
 
+#[test]
+fn test_forward_think_better() {
 
-fn find_pathes(pathes: &Vec::<Path>, level: u8) -> Vec::<Path> {
-    let mut result = Vec::<Path>::new();
+    let game = "{\"game\":{\"id\":\"7ab8e619-c7c3-47fa-9eb2-4cb3470a2dfa\"},\"turn\":533,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":8,\"y\":7},{\"x\":9,\"y\":4}],\"snakes\":[{\"id\":\"gs_VqGdRdgP8Bc8t3rrYF4PhHB6\",\"name\":\"lduchosal / dev\",\"health\":85,\"body\":[{\"x\":5,\"y\":4},{\"x\":5,\"y\":5},{\"x\":4,\"y\":5},{\"x\":3,\"y\":5},{\"x\":2,\"y\":5},{\"x\":1,\"y\":5},{\"x\":1,\"y\":6},{\"x\":0,\"y\":6},{\"x\":0,\"y\":7},{\"x\":1,\"y\":7},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":7},{\"x\":3,\"y\":8},{\"x\":2,\"y\":8},{\"x\":2,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":6,\"y\":10},{\"x\":7,\"y\":10},{\"x\":7,\"y\":9},{\"x\":8,\"y\":9},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":6,\"y\":8},{\"x\":6,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":6,\"y\":5},{\"x\":7,\"y\":5},{\"x\":7,\"y\":4},{\"x\":7,\"y\":3},{\"x\":6,\"y\":3},{\"x\":6,\"y\":2},{\"x\":5,\"y\":2},{\"x\":5,\"y\":1},{\"x\":5,\"y\":0},{\"x\":4,\"y\":0},{\"x\":3,\"y\":0},{\"x\":2,\"y\":0},{\"x\":1,\"y\":0},{\"x\":1,\"y\":1},{\"x\":0,\"y\":1},{\"x\":0,\"y\":2},{\"x\":0,\"y\":3}]}]},\"you\":{\"id\":\"gs_VqGdRdgP8Bc8t3rrYF4PhHB6\",\"name\":\"lduchosal / dev\",\"health\":85,\"body\":[{\"x\":5,\"y\":4},{\"x\":5,\"y\":5},{\"x\":4,\"y\":5},{\"x\":3,\"y\":5},{\"x\":2,\"y\":5},{\"x\":1,\"y\":5},{\"x\":1,\"y\":6},{\"x\":0,\"y\":6},{\"x\":0,\"y\":7},{\"x\":1,\"y\":7},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":3,\"y\":6},{\"x\":3,\"y\":7},{\"x\":3,\"y\":8},{\"x\":2,\"y\":8},{\"x\":2,\"y\":9},{\"x\":3,\"y\":9},{\"x\":4,\"y\":9},{\"x\":4,\"y\":10},{\"x\":5,\"y\":10},{\"x\":6,\"y\":10},{\"x\":7,\"y\":10},{\"x\":7,\"y\":9},{\"x\":8,\"y\":9},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":6,\"y\":8},{\"x\":6,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":6,\"y\":5},{\"x\":7,\"y\":5},{\"x\":7,\"y\":4},{\"x\":7,\"y\":3},{\"x\":6,\"y\":3},{\"x\":6,\"y\":2},{\"x\":5,\"y\":2},{\"x\":5,\"y\":1},{\"x\":5,\"y\":0},{\"x\":4,\"y\":0},{\"x\":3,\"y\":0},{\"x\":2,\"y\":0},{\"x\":1,\"y\":0},{\"x\":1,\"y\":1},{\"x\":0,\"y\":1},{\"x\":0,\"y\":2},{\"x\":0,\"y\":3}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+}
+
+fn find_pathes(pathes: &HashSet<Path>, level: u8) -> HashSet<Path> {
+    let mut result = HashSet::<Path>::new();
 
     for path in pathes {
         if path.level == level {
             let chosen = path.clone();
-            result.push(chosen);
+            result.insert(chosen);
         }
     }
 
     result
+}
+
+fn hunt_snakes(game: &Game, ps: &mut Vec<Possible>) {
+
+    let mut best_snake = 0;
+    let mut best_second_snake = 0;
+
+    for snake in &game.board.snakes {
+
+        let body_len = snake.body.len();
+        if body_len > best_snake {
+            best_snake = body_len;
+        }
+        else {
+            if body_len > best_second_snake {
+                best_second_snake = body_len;
+            }
+        }
+    }
+
+    if best_snake >= best_second_snake + 3 
+        && best_snake == game.you.body.len()
+    {
+        println!("best snake.. go for a fight");
+    }
+}
+
+fn snap_a_snake(game: &Game, ps: &mut Vec<Possible>) {
+
+    for snake in &game.board.snakes {
+        let head = &snake.body[0];
+        let possible = possibles(&head);
+
+    }
+}
+
+fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>) {
+
+    for p in ps {
+
+        let mut points = HashSet::new();
+        for path in &p.forward_pathes {
+            points.insert(path.clone());
+        }
+
+        let mut vec : Vec<Path> = points.clone().into_iter().map(|item| item).collect();
+        vec.sort_by(
+            |a,b| a.level.cmp(&b.level)
+            .then(a.point.x.cmp(&b.point.x))
+            .then(a.point.y.cmp(&b.point.y))
+            );
+        println!("Points len: {}", vec.len());
+        println!("Points: {:?}", vec
+        );
+    }
+}
+
+#[test]
+fn test_enroule_ton_snake() {
+
+    let game = "{\"game\":{\"id\":\"d770c179-7f52-45e3-bf85-288345f7a359\"},\"turn\":257,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":4,\"y\":0},{\"x\":1,\"y\":8}],\"snakes\":[{\"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":99,\"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]},{\"id\":\"gs_wrrQW4TFXPdQfrDCFfh6vfDM\",\"name\":\"zijian-chen96 / pinkpinkpig\",\"health\":29,\"body\":[{\"x\":2,\"y\":3},{\"x\":2,\"y\":2},{\"x\":3,\"y\":2},{\"x\":3,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":2},{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":4,\"y\":7},{\"x\":4,\"y\":8},{\"x\":3,\"y\":8}]}]},\"you\":{\"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":99,\"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]}}";
+
+    play(game);
+
 }
 
 #[derive(Debug)]
@@ -564,7 +655,7 @@ pub struct Possible {
     hit_or_leave: i32,
     look_for_tail: i32,
     forward_thinking: i32,
-    forward_pathes: Vec<Path>,
+    forward_pathes: HashSet<Path>,
     forward_pathes_len: i32,
     prefer_forward_space: i32,
 
@@ -590,17 +681,23 @@ impl Possible {
             look_for_tail: 0,
             forward_thinking: 0,
             kill_heads: 0,
-            forward_pathes: Vec::new(),
+            forward_pathes: HashSet::new(),
             forward_pathes_len: 0,
             prefer_forward_space: 0,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct Path {
     point: Point,
     level: u8,
+}
+
+impl fmt::Debug for Path {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{}, {}, {}]", self.point.x, self.point.y, self.level)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -701,7 +798,7 @@ pub struct Board {
     snakes: Vec<Snake>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, Hash)]
 pub struct Point {
     #[serde(rename = "x")]
     pub x: i16,
