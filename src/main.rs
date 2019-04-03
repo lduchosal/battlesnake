@@ -3,6 +3,11 @@
 extern crate tiny_http;
 extern crate serde_json;
 extern crate rand;
+extern crate indextree;
+
+use indextree::Arena;
+use indextree::NodeId;
+
 
 use rand::prelude::*;
 use std::collections::HashSet;
@@ -104,7 +109,7 @@ fn play(content: &str) -> Move {
     hunt_snakes(&g, &mut possibles);
     enroule_ton_snake(&g, &mut possibles);
 
-    (&g, &mut possibles);
+    // (&g, &mut possibles);
 
     dump_results(&possibles);
     best_fit(&mut possibles)
@@ -599,16 +604,9 @@ fn hunt_snakes(game: &Game, ps: &mut Vec<Possible>) {
     }
 }
 
-fn snap_a_snake(game: &Game, ps: &mut Vec<Possible>) {
-
-    for snake in &game.board.snakes {
-        let head = &snake.body[0];
-        let possible = possibles(&head);
-
-    }
-}
-
 fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>) {
+
+    build_futur(game, &game.you);
 
     for p in ps {
 
@@ -632,11 +630,191 @@ fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>) {
 #[test]
 fn test_enroule_ton_snake() {
 
-    let game = "{\"game\":{\"id\":\"d770c179-7f52-45e3-bf85-288345f7a359\"},\"turn\":257,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":4,\"y\":0},{\"x\":1,\"y\":8}],\"snakes\":[{\"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":99,\"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]},{\"id\":\"gs_wrrQW4TFXPdQfrDCFfh6vfDM\",\"name\":\"zijian-chen96 / pinkpinkpig\",\"health\":29,\"body\":[{\"x\":2,\"y\":3},{\"x\":2,\"y\":2},{\"x\":3,\"y\":2},{\"x\":3,\"y\":1},{\"x\":4,\"y\":1},{\"x\":4,\"y\":2},{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":4,\"y\":7},{\"x\":4,\"y\":8},{\"x\":3,\"y\":8}]}]},\"you\":{\"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",\"name\":\"lduchosal / kimjon-0.14\",\"health\":99,\"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]}}";
+    let game = "
+    {\"game\":
+        {\"id\":\"d770c179-7f52-45e3-bf85-288345f7a359\"},
+        \"turn\":257,
+        \"board\":{
+            \"height\":11,
+            \"width\":11,
+            \"food\":[{\"x\":4,\"y\":0},{\"x\":1,\"y\":8}],
+            \"snakes\":[
+                {\"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",
+                    \"name\":\"lduchosal / kimjon-0.14\",
+                    \"health\":99,
+                    \"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},
+                        {\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},
+                        {\"x\":6,\"y\":4},
+                        {\"x\":7,\"y\":4},
+                        {\"x\":8,\"y\":4},
+                        {\"x\":9,\"y\":4},{\"x\":9,\"y\":5},
+                        {\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},
+                        {\"x\":9,\"y\":8},
+                        {\"x\":8,\"y\":8},
+                        {\"x\":7,\"y\":8},
+                        {\"x\":7,\"y\":9}]},
+
+                {\"id\":\"gs_wrrQW4TFXPdQfrDCFfh6vfDM\",
+                    \"name\":\"zijian-chen96 / pinkpinkpig\",
+                    \"health\":29,
+                    \"body\":[
+                        {\"x\":2,\"y\":3},{\"x\":2,\"y\":2},
+                        {\"x\":3,\"y\":2},{\"x\":3,\"y\":1},
+                        {\"x\":4,\"y\":1},{\"x\":4,\"y\":2},{\"x\":4,\"y\":3},{\"x\":4,\"y\":4},{\"x\":4,\"y\":5},{\"x\":4,\"y\":6},{\"x\":4,\"y\":7},{\"x\":4,\"y\":8},
+                        {\"x\":3,\"y\":8}]}
+                ]},
+            \"you\":{
+                \"id\":\"gs_dQbRY6wwBmHx6cp994SKqrp6\",
+                \"name\":\"lduchosal / kimjon-0.14\",
+                \"health\":99,
+                \"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]}}";
 
     play(game);
 
 }
+
+fn build_futur<'t>(game: &Game, snake: &Snake) {
+
+    let head = &snake.body[0];
+    let arena = &mut Arena::new();
+    let root = arena.new_node(head.clone());
+    build_futur_nodes(game, arena, root, 0);
+    let mut pathes = convert_pathes(arena);
+    pathes.sort_by(|v,w| v.len().cmp(&w.len()));
+
+    print_pathes(&pathes);
+}
+
+fn print_pathes(pathes: &Vec<Vec<Point>>) {
+
+    for path in pathes {
+
+        if !path.contains(&Point { x: 10, y: 4 }) {
+            continue;
+        }
+
+        print!("{} [ ", path.len());
+        for point in path {
+            print!("{} ", point);
+        } 
+        println!("]");
+    }
+}
+
+fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>>{
+
+    let mut leaves = Vec::new();
+    for node in arena.iter() {
+        println!("Node:Deserialize {} {:?} {:?}", node.data, node.first_child(), node.last_child());
+        match node.last_child() {
+            None => leaves.push(node),
+            Some(_) => {}
+        }
+    }
+
+    let mut pathes = Vec::new();
+    for leaf in leaves {
+
+        match leaf.parent() {
+            None => {},
+            Some(parent_id) => {
+
+                let mut path = get_parent_data(arena, parent_id);
+                path.reverse();
+                path.push(leaf.data.clone());
+                pathes.push(path);
+            }
+        }
+    }
+
+    pathes
+}
+
+fn build_futur_nodes<'t>(game: &Game, arena: &mut Arena<Point>, parent: NodeId, level: u8) {
+
+    let data = get_data(arena, parent);
+    for (i, j) in next_moves() {
+
+        let next = Point {
+            x: &data.x + i,
+            y: &data.y + j
+        };
+
+        if outside_board(&game.board, &next) {
+            continue;
+        }
+
+        if parent_already_visited(arena, parent, &next) {
+            continue;
+        }
+
+        if snake_present(&game.board, &next) {
+            continue;
+        }
+
+        let next_node = arena.new_node(next);
+        parent.append(next_node, arena);
+
+        build_futur_nodes(game, arena, next_node, level + 1);
+    }
+}
+
+fn next_moves() -> Vec<(i16, i16)> {
+    vec![(0, 1), (1, 0), (0, -1), (-1, 0)]
+}
+
+fn snake_present(board: &Board, point: &Point) -> bool {
+    for snake in &board.snakes {
+        for body in &snake.body {
+            if body.eq(point) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn outside_board(board: &Board, point: &Point) -> bool {
+    point.x < 0 
+    || point.y < 0
+    || point.x >= board.width as i16
+    || point.y >= board.height as i16
+}
+
+fn parent_already_visited(arena: &mut Arena<Point>, node: NodeId, point: &Point) -> bool {
+
+    let datas = get_parent_data(arena, node);
+    for data in datas {
+        if data == *point {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn get_parent_data(arena: &Arena<Point>, node: NodeId) -> Vec::<Point> {
+    let mut result = Vec::<Point>::new();
+
+    let parents = node.ancestors(arena);
+
+    for parent in parents.into_iter() {
+        let data = arena.get(parent).unwrap().data.clone();
+        result.push(data);
+    }
+
+    result
+}
+
+fn get_data(arena: &mut Arena<Point>, node_id: NodeId) -> Point {
+    let node = arena.get(node_id).unwrap();
+    node.data.clone()
+}
+
+// pub struct Node {
+//     data: Point,
+//     children: Vec<Node>,
+//     parents: Vec<Node>,
+// }
 
 #[derive(Debug)]
 pub struct Possible {
@@ -805,6 +983,12 @@ pub struct Point {
 
     #[serde(rename = "y")]
     pub y: i16,
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.x, self.y)
+    }
 }
 
 impl PartialEq for Point {
