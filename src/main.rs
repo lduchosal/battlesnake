@@ -1,4 +1,5 @@
 #![feature(try_trait)]
+extern crate time;
 
 extern crate tiny_http;
 extern crate serde_json;
@@ -7,6 +8,8 @@ extern crate indextree;
 
 use indextree::Arena;
 use indextree::NodeId;
+
+use time::PreciseTime;
 
 
 use rand::prelude::*;
@@ -89,30 +92,127 @@ fn main() {
 
 fn play(content: &str) -> Move {
 
+    let result = engine(content);
+
+    result
+}
+
+fn engine(content: &str) -> Move {
+
     let g: Game = serde_json::from_str(content).expect("Unable to deserialize game");
+
+    let start = PreciseTime::now();
 
     let head = &g.you.body[0];
 
     let mut possibles = possibles(&head);
-    check_walls(&g, &mut possibles);
-    check_snakes(&g, &mut possibles);
-    check_tails(&g, &mut possibles);
-    check_heads(&g, &mut possibles);
-    kill_heads(&g, &mut possibles);
-    hit_or_leave(&g, &mut possibles);
-    prefer_food(&g, &mut possibles);
-    prefer_food_distance(&g, &mut possibles);
-    eat_my_food(&g, &mut possibles);
-    look_for_tail(&g, &mut possibles);
-    forward_thinking(&g, &mut possibles, 30);
-    prefer_forward_space(&g, &mut possibles);
-    hunt_snakes(&g, &mut possibles);
-    enroule_ton_snake(&g, &mut possibles);
+    let tpossibles = PreciseTime::now();
 
+    check_walls(&g, &mut possibles);
+    let tcheck_walls = PreciseTime::now();
+
+    check_snakes(&g, &mut possibles);
+    let tcheck_snakes = PreciseTime::now();
+
+    check_tails(&g, &mut possibles);
+    let tcheck_tails = PreciseTime::now();
+
+    check_heads(&g, &mut possibles);
+    let tcheck_heads = PreciseTime::now();
+
+    kill_heads(&g, &mut possibles);
+    let tkill_heads = PreciseTime::now();
+
+    hit_or_leave(&g, &mut possibles);
+    let thit_or_leave = PreciseTime::now();
+
+    prefer_food(&g, &mut possibles);
+    let tprefer_food = PreciseTime::now();
+
+    prefer_food_distance(&g, &mut possibles);
+    let tprefer_food_distance = PreciseTime::now();
+
+    eat_my_food(&g, &mut possibles);
+    let teat_my_food = PreciseTime::now();
+
+    look_for_tail(&g, &mut possibles);
+    let tlook_for_tail = PreciseTime::now();
+
+    forward_thinking(&g, &mut possibles, 30);
+    let tforward_thinking = PreciseTime::now();
+
+    prefer_forward_space(&g, &mut possibles);
+    let tprefer_forward_space = PreciseTime::now();
+
+    hunt_snakes(&g, &mut possibles);
+    let thunt_snakes = PreciseTime::now();
+
+    let mut futur = build_futur(&g);
+    let tbuild_futur = PreciseTime::now();
+
+    longest_futur(&mut futur);
+    let tlongest_futur = PreciseTime::now();
+
+    enroule_ton_snake(&g, &mut possibles);
+    let tenroule_ton_snake = PreciseTime::now();
     // (&g, &mut possibles);
 
     dump_results(&possibles);
-    best_fit(&mut possibles)
+    let tdump_results = PreciseTime::now();
+
+    let bestfit = best_fit(&mut possibles);
+    let tbestfit = PreciseTime::now();
+
+    let timings = vec![
+        ("start                   ", start                   ),
+        ("possible                ", tpossibles              ),
+        ("check_walls             ", tcheck_walls            ),
+        ("check_snakes            ", tcheck_snakes           ),
+        ("check_tails             ", tcheck_tails            ),
+        ("check_heads             ", tcheck_heads            ),
+        ("kill_heads              ", tkill_heads             ),
+        ("hit_or_leave            ", thit_or_leave           ),
+        ("prefer_food             ", tprefer_food            ),
+        ("prefer_food_distance    ", tprefer_food_distance   ),
+        ("eat_my_food             ", teat_my_food            ),
+        ("look_for_tail           ", tlook_for_tail          ),
+        ("forward_thinking        ", tforward_thinking       ),
+        ("prefer_forward_space    ", tprefer_forward_space   ),
+        ("hunt_snakes             ", thunt_snakes            ),
+        ("build_futur             ", tbuild_futur            ),
+        ("longest_futur           ", tlongest_futur          ),
+        ("enroule_ton_snake       ", tenroule_ton_snake      ),
+        ("dump_results            ", tdump_results           ),
+        ("bestfit                 ", tbestfit                ),
+    ];
+
+    println!("");
+    print_timing(timings);
+    println!("");
+
+    bestfit
+}
+
+fn longest_futur(futur: &mut Arena<Point>) {
+
+    let mut pathes = convert_pathes(futur);
+    pathes.sort_by(|v,w| v.len().cmp(&w.len()));
+    print_pathes(&pathes);
+}
+
+fn print_timing(timings: Vec<(&str, PreciseTime)>) {
+
+    for i in 0..timings.len()-1 {
+
+        let start = timings[i];
+        let end = timings[i+1];
+
+        println!("{} ms {}.", start.1.to(end.1).num_milliseconds(), end.0);
+    }
+
+    let start = timings[0];
+    let end = timings[timings.len()-1];
+    println!("{} ms total.", start.1.to(end.1).num_milliseconds());
 
 }
 
@@ -176,8 +276,6 @@ fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
     }
 
 }
-
-
 
 #[test]
 fn test_mange_la_pomme() {
@@ -552,9 +650,7 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
             p.forward_thinking -= forward_thinking;
             p.forward_pathes = pathes;
         }
-        
     }
-
 }
 
 #[test]
@@ -606,25 +702,7 @@ fn hunt_snakes(game: &Game, ps: &mut Vec<Possible>) {
 
 fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>) {
 
-    build_futur(game, &game.you);
 
-    for p in ps {
-
-        let mut points = HashSet::new();
-        for path in &p.forward_pathes {
-            points.insert(path.clone());
-        }
-
-        let mut vec : Vec<Path> = points.clone().into_iter().map(|item| item).collect();
-        vec.sort_by(
-            |a,b| a.level.cmp(&b.level)
-            .then(a.point.x.cmp(&b.point.x))
-            .then(a.point.y.cmp(&b.point.y))
-            );
-        println!("Points len: {}", vec.len());
-        println!("Points: {:?}", vec
-        );
-    }
 }
 
 #[test]
@@ -670,26 +748,33 @@ fn test_enroule_ton_snake() {
                 \"body\":[{\"x\":7,\"y\":0},{\"x\":6,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":7,\"y\":4},{\"x\":8,\"y\":4},{\"x\":9,\"y\":4},{\"x\":9,\"y\":5},{\"x\":10,\"y\":5},{\"x\":10,\"y\":6},{\"x\":10,\"y\":7},{\"x\":10,\"y\":8},{\"x\":9,\"y\":8},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9}]}}";
 
     play(game);
-
 }
 
-fn build_futur<'t>(game: &Game, snake: &Snake) {
+fn build_futur<'t>(game: &Game) -> Arena<Point> {
 
-    let head = &snake.body[0];
-    let arena = &mut Arena::new();
+    let head = &game.you.body[0];
+    let mut a = Arena::new();
+    let arena = &mut a;
     let root = arena.new_node(head.clone());
     build_futur_nodes(game, arena, root, 0);
-    let mut pathes = convert_pathes(arena);
-    pathes.sort_by(|v,w| v.len().cmp(&w.len()));
 
-    print_pathes(&pathes);
+    a
 }
 
 fn print_pathes(pathes: &Vec<Vec<Point>>) {
 
+    let max = pathes.last().unwrap().len();
+    let min = pathes.first().unwrap().len();
+    let count = pathes.len();
+    println!("min: {}", min);
+    println!("max: {}", max);
+    println!("count: {}", count);
+
     for path in pathes {
 
-        if !path.contains(&Point { x: 10, y: 4 }) {
+        //if !path.contains(&Point { x: 10, y: 4 }) {
+        if path.len() < max 
+            && path.len() > min {
             continue;
         }
 
@@ -701,11 +786,11 @@ fn print_pathes(pathes: &Vec<Vec<Point>>) {
     }
 }
 
-fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>>{
+fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>> {
 
     let mut leaves = Vec::new();
     for node in arena.iter() {
-        println!("Node:Deserialize {} {:?} {:?}", node.data, node.first_child(), node.last_child());
+        //println!("Node:Deserialize {} {:?} {:?}", node.data, node.first_child(), node.last_child());
         match node.last_child() {
             None => leaves.push(node),
             Some(_) => {}
@@ -731,6 +816,10 @@ fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>>{
 }
 
 fn build_futur_nodes<'t>(game: &Game, arena: &mut Arena<Point>, parent: NodeId, level: u8) {
+
+    if arena.count() > 4000 { // Too deep is the ocean the ocean
+        return;
+    }
 
     let data = get_data(arena, parent);
     for (i, j) in next_moves() {

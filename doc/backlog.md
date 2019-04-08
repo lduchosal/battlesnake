@@ -67,10 +67,11 @@ https://play.battlesnake.io/g/d770c179-7f52-45e3-bf85-288345f7a359/
 
     Turn 258, dérouler le serpent au maximum pour sortir du piège.
 
-## Psychanalyse les snake
+## Psychanalyse les snakes
 
 Enregistrer le comportement des snakes dans les parties
 Psy analyser les snakes en 1-1
+Si les serpents ne mangent pas la pomme quand il y a possibilité de collision avec un snake de taille egale, alors manger la pomme a sa place si il y a la possibilité.
 
 ## Calcul des possibles
 
@@ -80,8 +81,17 @@ Ne pas déduire la queue des snakes qui mangent une pomme
 
 Tuner les poids de chaque action avec un réseau neuronal / algorythmes génétiques
 
+## Deviner où va apparaitre la nourriture
+
+Deviner ou va apparaitre la prochaine pomme, et se diriger vers l'endroit le plus probable pour avoir un avantage sur les autrres serpents.
+
+## Aller dans un coin tranquille
+
+Au début de la partie, les serpents se mélangent et se collisionnent facilement. Chercher un endroit calme, où les futures pommes pourraient apparaitre, et où les autres serpents ne se trouvent pas et ne se dirigent pas.
+
 ## Bug
 
 https://play.battlesnake.io/g/1a892e73-c901-4522-89a5-95f0af812a17/
 
     Tour 5, attaque un serpent plus gros !
+
