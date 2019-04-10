@@ -25,7 +25,7 @@ fn main() {
     let train = "6600";
     let laurabush = "6615";
 
-    let server = Server::http(format!("0.0.0.0:{}", laurabush)).unwrap();
+    let server = Server::http(format!("0.0.0.0:{}", train)).unwrap();
 
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
@@ -141,6 +141,10 @@ fn engine(content: &str) -> Move {
     forward_thinking(&g, &mut possibles, 30);
     let tforward_thinking = PreciseTime::now();
 
+    instant_pathes(&g, &mut possibles, 30);
+    let tinstant_pathes = PreciseTime::now();
+
+
     prefer_forward_space(&g, &mut possibles);
     let tprefer_forward_space = PreciseTime::now();
 
@@ -150,10 +154,13 @@ fn engine(content: &str) -> Move {
     let mut futur = build_futur(&g);
     let tbuild_futur = PreciseTime::now();
 
-    longest_futur(&mut futur);
-    let tlongest_futur = PreciseTime::now();
+    let mut futur_list = convert_futur_pathes(&mut futur);
+    let tconvert_futur_pathes = PreciseTime::now();
 
-    enroule_ton_snake(&g, &mut possibles);
+    //print_futur_pathes(&mut futur_list);
+    let tprint_futur_pathes = PreciseTime::now();
+
+    enroule_ton_snake(&g, &mut possibles, &futur_list);
     let tenroule_ton_snake = PreciseTime::now();
     // (&g, &mut possibles);
 
@@ -164,26 +171,28 @@ fn engine(content: &str) -> Move {
     let tbestfit = PreciseTime::now();
 
     let timings = vec![
-        ("start                   ", start                   ),
-        ("possible                ", tpossibles              ),
-        ("check_walls             ", tcheck_walls            ),
-        ("check_snakes            ", tcheck_snakes           ),
-        ("check_tails             ", tcheck_tails            ),
-        ("check_heads             ", tcheck_heads            ),
-        ("kill_heads              ", tkill_heads             ),
-        ("hit_or_leave            ", thit_or_leave           ),
-        ("prefer_food             ", tprefer_food            ),
-        ("prefer_food_distance    ", tprefer_food_distance   ),
-        ("eat_my_food             ", teat_my_food            ),
-        ("look_for_tail           ", tlook_for_tail          ),
-        ("forward_thinking        ", tforward_thinking       ),
-        ("prefer_forward_space    ", tprefer_forward_space   ),
-        ("hunt_snakes             ", thunt_snakes            ),
-        ("build_futur             ", tbuild_futur            ),
-        ("longest_futur           ", tlongest_futur          ),
-        ("enroule_ton_snake       ", tenroule_ton_snake      ),
-        ("dump_results            ", tdump_results           ),
-        ("bestfit                 ", tbestfit                ),
+        ("start", start),
+        ("possible", tpossibles),
+        ("check_walls", tcheck_walls),
+        ("check_snakes", tcheck_snakes),
+        ("check_tails", tcheck_tails),
+        ("check_heads", tcheck_heads),
+        ("kill_heads", tkill_heads),
+        ("hit_or_leave", thit_or_leave),
+        ("prefer_food", tprefer_food),
+        ("prefer_food_distance", tprefer_food_distance),
+        ("eat_my_food", teat_my_food),
+        ("look_for_tail", tlook_for_tail),
+        ("forward_thinking", tforward_thinking),
+        ("instant_pathes", tinstant_pathes),
+        ("prefer_forward_space", tprefer_forward_space),
+        ("hunt_snakes", thunt_snakes),
+        ("build_futur", tbuild_futur),
+        ("tconvert_futur_pathes", tconvert_futur_pathes),
+        ("tprint_futur_pathes", tprint_futur_pathes),
+        ("enroule_ton_snake", tenroule_ton_snake),
+        ("dump_results", tdump_results),
+        ("bestfit", tbestfit),
     ];
 
     println!("");
@@ -193,11 +202,35 @@ fn engine(content: &str) -> Move {
     bestfit
 }
 
-fn longest_futur(futur: &mut Arena<Point>) {
-
+fn convert_futur_pathes(futur: &mut Arena<Point>) -> Vec<Vec<Point>> {
     let mut pathes = convert_pathes(futur);
-    pathes.sort_by(|v,w| v.len().cmp(&w.len()));
-    print_pathes(&pathes);
+    pathes.sort_by(|v,w| w.len().cmp(&v.len()));
+    pathes
+}
+
+fn print_futur_pathes(pathes: &Vec<Vec<Point>>) {
+
+    let min = pathes.last().unwrap().len();
+    let max = pathes.first().unwrap().len();
+    let count = pathes.len();
+    println!("min: {}", min);
+    println!("max: {}", max);
+    println!("count: {}", count);
+
+    for path in pathes {
+
+        //if !path.contains(&Point { x: 10, y: 4 }) {
+        if path.len() < max 
+            && path.len() > min {
+            continue;
+        }
+
+        print!("{} [ ", path.len());
+        for point in path {
+            print!("{} ", point);
+        } 
+        println!("]");
+    }
 }
 
 fn print_timing(timings: Vec<(&str, PreciseTime)>) {
@@ -246,9 +279,25 @@ fn possibles(head: &Point) -> Vec<Possible> {
 }
 
 fn dump_results(possibles: &Vec<Possible>) {
+
+    let mut best = 0;
     for p in possibles {
+        println!("--");
         println!("possible: {:?}", p);
+        if p.value > best {
+            best = p.value;
+        }
+
     }
+
+    println!("-- best value");
+    for p in possibles {
+        if p.value == best {
+            println!("possible: {:?}", p);
+        }
+    }
+
+
 }
 
 fn check_walls(game: &Game, possibles: &mut Vec<Possible>) {
@@ -316,6 +365,15 @@ impl From<std::option::NoneError> for Error {
     }
 }
 
+fn distance(one: &Point, two: &Point) -> i32 {
+
+    let distancex = (one.x as i32 - two.x as i32).abs();
+    let distancey = (one.y as i32 - two.y as i32).abs();
+    let distance = distancex + distancey;
+
+    distance
+}
+
 fn eat_my_food(game: &Game, ps: &mut Vec<Possible>) -> Result<(), Error> {
 
 
@@ -330,10 +388,7 @@ fn eat_my_food(game: &Game, ps: &mut Vec<Possible>) -> Result<(), Error> {
         for snake in &game.board.snakes {
 
             let head = &snake.body.first()?;
-            let distancex = (head.x as i32 - food.x as i32).abs();
-            let distancey = (head.y as i32 - food.y as i32).abs();
-
-            let distance = distancex + distancey;
+            let distance = distance(head, food);
 
             distances.push((distance, snake));
         }
@@ -403,7 +458,6 @@ fn test_eat_my_snake() {
 
 
 fn prefer_food(game: &Game, ps: &mut Vec<Possible>) {
-
 
     for p in ps {
 
@@ -653,6 +707,51 @@ fn forward_thinking(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
     }
 }
 
+
+fn instant_pathes(game: &Game, ps: &mut Vec<Possible>, depth: u8) {
+
+    for p in ps {
+
+        if p.value < 0 {
+            continue;
+        }
+
+        let mut futur = game.clone();
+        let mut pathes = HashSet::new();
+
+        let root = Path { point: p.point.clone(), level: 0 };
+        pathes.insert(root);
+
+        for level in 0..depth {
+
+            let level_pathes = find_pathes(&pathes, level);
+            for path in &level_pathes {
+                append_point_me(&mut futur, &path.point);
+            }
+
+            for path in &level_pathes {
+
+                let mut fps = possibles(&path.point);
+                check_walls(&futur, &mut fps);
+                check_snakes(&futur, &mut fps);
+                check_tails(&futur, &mut fps);
+
+                for fp in fps {
+                    if fp.value > 0 {
+                        let path = Path { point: fp.point.clone(), level: level +1 };
+                        pathes.insert(path);
+                    }
+                }
+
+            }
+
+        }
+
+        p.instant_pathes = pathes.len() as u16;
+
+    }
+}
+
 #[test]
 fn test_forward_think_better() {
 
@@ -700,8 +799,47 @@ fn hunt_snakes(game: &Game, ps: &mut Vec<Possible>) {
     }
 }
 
-fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>) {
+fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>, futurs: &Vec<Vec<Point>>)  {
 
+    let mut tails = game.you.body.clone();
+    tails.reverse();
+
+    let mut found : Option<Vec<Point>> = None;
+    'main: for futur in futurs {
+        let mut back = futur.clone();
+        back.reverse();
+
+        let mut i = 0;
+        for point in &back {
+
+            let mut j = 0;
+            for tail in &tails {
+                let d = distance(point, tail);
+                if d == 1 && j >= i {
+                    found = Some(back.clone());
+                    break 'main;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+    }
+
+    match found {
+        Some(mut path) => {
+            path.pop();
+            let next = path.pop().unwrap();
+            for p in ps {
+                if p.point.eq(&next) {
+                    let value = game.board.height * game.board.width / p.instant_pathes;
+                    p.enroule_ton_snake.append(&mut path);
+                    p.enroule_ton_snake_value = value as i32;
+                    p.value += value as i32;
+                }
+            } 
+        },
+        None => {}
+    }
 
 }
 
@@ -761,31 +899,6 @@ fn build_futur<'t>(game: &Game) -> Arena<Point> {
     a
 }
 
-fn print_pathes(pathes: &Vec<Vec<Point>>) {
-
-    let max = pathes.last().unwrap().len();
-    let min = pathes.first().unwrap().len();
-    let count = pathes.len();
-    println!("min: {}", min);
-    println!("max: {}", max);
-    println!("count: {}", count);
-
-    for path in pathes {
-
-        //if !path.contains(&Point { x: 10, y: 4 }) {
-        if path.len() < max 
-            && path.len() > min {
-            continue;
-        }
-
-        print!("{} [ ", path.len());
-        for point in path {
-            print!("{} ", point);
-        } 
-        println!("]");
-    }
-}
-
 fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>> {
 
     let mut leaves = Vec::new();
@@ -817,7 +930,11 @@ fn convert_pathes(arena: &mut Arena<Point>) -> Vec<Vec<Point>> {
 
 fn build_futur_nodes<'t>(game: &Game, arena: &mut Arena<Point>, parent: NodeId, level: u8) {
 
-    if arena.count() > 4000 { // Too deep is the ocean the ocean
+    if arena.count() > 3000 { // Too deep is the ocean the ocean
+        return;
+    }
+
+    if level as usize > game.you.body.len() { // Too deep is the ocean the ocean
         return;
     }
 
@@ -925,7 +1042,9 @@ pub struct Possible {
     forward_pathes: HashSet<Path>,
     forward_pathes_len: i32,
     prefer_forward_space: i32,
-
+    instant_pathes: u16,
+    enroule_ton_snake: Vec<Point>,
+    enroule_ton_snake_value: i32,
     rand: u8
 }
 
@@ -951,6 +1070,10 @@ impl Possible {
             forward_pathes: HashSet::new(),
             forward_pathes_len: 0,
             prefer_forward_space: 0,
+            instant_pathes: 0,
+            enroule_ton_snake: Vec::new(),
+            enroule_ton_snake_value: 0,
+
         }
     }
 }
