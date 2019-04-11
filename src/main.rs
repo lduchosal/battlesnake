@@ -625,7 +625,7 @@ fn hit_or_leave(game: &Game, ps: &mut Vec<Possible>) {
     }
 }
 
-fn prefer_forward_space(_: &Game, ps: &mut Vec<Possible>) {
+fn prefer_forward_space(game: &Game, ps: &mut Vec<Possible>) {
 
     ps.sort_by(|a, b| a.forward_pathes_len.cmp(&b.forward_pathes_len));
     let total : i32 = ps.iter().map(|item| item.forward_pathes_len).sum();
@@ -635,10 +635,16 @@ fn prefer_forward_space(_: &Game, ps: &mut Vec<Possible>) {
         if total <= 0 {
             continue;
         }
-        let assigned = value * p.forward_pathes_len / total;
+        let mut assigned = value * p.forward_pathes_len / total;
+        if p.forward_pathes_len < game.you.body.len() as i32 {
+            assigned -= 100;
+        }
+
         p.value += assigned;
         p.prefer_forward_space += assigned;
+
     }
+
 
 }
 
@@ -831,7 +837,7 @@ fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>, futurs: &Vec<Vec<Point
             let next = path.pop().unwrap();
             for p in ps {
                 if p.point.eq(&next) {
-                    let value = game.board.height * game.board.width / p.instant_pathes;
+                    let value = ((game.board.height * game.board.width) + 1) / (p.instant_pathes + 1) / 10;
                     p.enroule_ton_snake.append(&mut path);
                     p.enroule_ton_snake_value = value as i32;
                     p.value += value as i32;
@@ -842,6 +848,28 @@ fn enroule_ton_snake(game: &Game, ps: &mut Vec<Possible>, futurs: &Vec<Vec<Point
     }
 
 }
+
+#[test]
+fn test_enroule_ton_snake_crash() {
+    let game = "{\"game\":{\"id\":\"6d78ce58-55ce-4948-a544-34f79002be5f\"},\"turn\":154,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":9,\"y\":6}],\"snakes\":[{\"id\":\"gs_V7mbvr4CVRxyvHfD6w3RKw8F\",\"name\":\"lduchosal / jack-0.16\",\"health\":99,\"body\":[{\"x\":9,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":6},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":8,\"y\":10},{\"x\":9,\"y\":10},{\"x\":9,\"y\":9},{\"x\":10,\"y\":9},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":10,\"y\":5},{\"x\":10,\"y\":4},{\"x\":9,\"y\":4}]}]},\"you\":{\"id\":\"gs_V7mbvr4CVRxyvHfD6w3RKw8F\",\"name\":\"lduchosal / jack-0.16\",\"health\":99,\"body\":[{\"x\":9,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":6},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":9},{\"x\":7,\"y\":10},{\"x\":8,\"y\":10},{\"x\":9,\"y\":10},{\"x\":9,\"y\":9},{\"x\":10,\"y\":9},{\"x\":10,\"y\":8},{\"x\":10,\"y\":7},{\"x\":10,\"y\":6},{\"x\":10,\"y\":5},{\"x\":10,\"y\":4},{\"x\":9,\"y\":4}]}}";
+    play(game);
+}
+
+#[test]
+fn test_enroule_ton_snake_crash2() {
+    let game = "{\"game\":{\"id\":\"a07b0809-334f-41d1-8a8b-9293625bdc05\"},\"turn\":258,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":8,\"y\":8}],\"snakes\":[{\"id\":\"gs_hTkkpGxKPKMtxGkfRKW7pmv7\",\"name\":\"lduchosal / jack-0.16\",\"health\":94,\"body\":[{\"x\":2,\"y\":0},{\"x\":2,\"y\":1},{\"x\":2,\"y\":2},{\"x\":2,\"y\":3},{\"x\":1,\"y\":3},{\"x\":0,\"y\":3},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":0,\"y\":7},{\"x\":0,\"y\":8},{\"x\":0,\"y\":9},{\"x\":0,\"y\":10},{\"x\":1,\"y\":10},{\"x\":2,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":9},{\"x\":3,\"y\":8},{\"x\":2,\"y\":8},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":3,\"y\":4},{\"x\":3,\"y\":3},{\"x\":3,\"y\":2},{\"x\":3,\"y\":1},{\"x\":3,\"y\":0}]}]},\"you\":{\"id\":\"gs_hTkkpGxKPKMtxGkfRKW7pmv7\",\"name\":\"lduchosal / jack-0.16\",\"health\":94,\"body\":[{\"x\":2,\"y\":0},{\"x\":2,\"y\":1},{\"x\":2,\"y\":2},{\"x\":2,\"y\":3},{\"x\":1,\"y\":3},{\"x\":0,\"y\":3},{\"x\":0,\"y\":4},{\"x\":0,\"y\":5},{\"x\":0,\"y\":6},{\"x\":0,\"y\":7},{\"x\":0,\"y\":8},{\"x\":0,\"y\":9},{\"x\":0,\"y\":10},{\"x\":1,\"y\":10},{\"x\":2,\"y\":10},{\"x\":3,\"y\":10},{\"x\":3,\"y\":9},{\"x\":3,\"y\":8},{\"x\":2,\"y\":8},{\"x\":2,\"y\":7},{\"x\":2,\"y\":6},{\"x\":2,\"y\":5},{\"x\":2,\"y\":4},{\"x\":3,\"y\":4},{\"x\":3,\"y\":3},{\"x\":3,\"y\":2},{\"x\":3,\"y\":1},{\"x\":3,\"y\":0}]}}";
+    play(game);
+}
+
+#[test]
+fn enroule_ton_snake_stupid() {
+    let game = "{\"game\":{\"id\":\"d1027b65-c5fa-4276-ba54-3cbeb0e628db\"},\"turn\":193,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":6,\"y\":5},{\"x\":0,\"y\":8}],\"snakes\":[{\"id\":\"gs_YJqGFmRtxdbWSfkb8Vp4Ccgb\",\"name\":\"manedev79 / hungry-snake\",\"health\":83,\"body\":[{\"x\":4,\"y\":1},{\"x\":4,\"y\":0},{\"x\":5,\"y\":0},{\"x\":5,\"y\":1},{\"x\":5,\"y\":2},{\"x\":5,\"y\":3},{\"x\":6,\"y\":3},{\"x\":6,\"y\":4},{\"x\":5,\"y\":4},{\"x\":5,\"y\":5},{\"x\":4,\"y\":5},{\"x\":3,\"y\":5},{\"x\":3,\"y\":6},{\"x\":3,\"y\":7}]},{\"id\":\"gs_YkK67yv3qByB7yfS3ftVpXT6\",\"name\":\"lduchosal / jack-0.16\",\"health\":63,\"body\":[{\"x\":6,\"y\":7},{\"x\":6,\"y\":8},{\"x\":5,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":7,\"y\":6},{\"x\":7,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":6},{\"x\":8,\"y\":7},{\"x\":7,\"y\":7}]}]},\"you\":{\"id\":\"gs_YkK67yv3qByB7yfS3ftVpXT6\",\"name\":\"lduchosal / jack-0.16\",\"health\":63,\"body\":[{\"x\":6,\"y\":7},{\"x\":6,\"y\":8},{\"x\":5,\"y\":8},{\"x\":4,\"y\":8},{\"x\":4,\"y\":7},{\"x\":4,\"y\":6},{\"x\":5,\"y\":6},{\"x\":6,\"y\":6},{\"x\":7,\"y\":6},{\"x\":7,\"y\":5},{\"x\":8,\"y\":5},{\"x\":8,\"y\":6},{\"x\":8,\"y\":7},{\"x\":7,\"y\":7}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Right);
+
+}
+
 
 #[test]
 fn test_enroule_ton_snake() {
