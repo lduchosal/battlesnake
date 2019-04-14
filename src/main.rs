@@ -23,9 +23,9 @@ fn main() {
 
     let home = "6601";
     let train = "6600";
-    let jack = "6616";
+    let tomje = "6617";
 
-    let server = Server::http(format!("0.0.0.0:{}", jack)).unwrap();
+    let server = Server::http(format!("0.0.0.0:{}", tomje)).unwrap();
 
     let port = server.server_addr().port();
     println!("Now listening on port {}", port);
@@ -144,9 +144,14 @@ fn engine(content: &str) -> Move {
     instant_pathes(&g, &mut possibles, 30);
     let tinstant_pathes = PreciseTime::now();
 
-
     prefer_forward_space(&g, &mut possibles);
     let tprefer_forward_space = PreciseTime::now();
+
+    prefer_center(&g, &mut possibles);
+    let tprefer_center = PreciseTime::now();
+
+    avoid_walls(&g, &mut possibles);
+    let tavoid_walls = PreciseTime::now();
 
     hunt_snakes(&g, &mut possibles);
     let thunt_snakes = PreciseTime::now();
@@ -186,6 +191,8 @@ fn engine(content: &str) -> Move {
         ("forward_thinking", tforward_thinking),
         ("instant_pathes", tinstant_pathes),
         ("prefer_forward_space", tprefer_forward_space),
+        ("prefer_center", tprefer_center),
+        ("avoid_walls", tavoid_walls),
         ("hunt_snakes", thunt_snakes),
         ("build_futur", tbuild_futur),
         ("tconvert_futur_pathes", tconvert_futur_pathes),
@@ -624,6 +631,75 @@ fn hit_or_leave(game: &Game, ps: &mut Vec<Possible>) {
         }
     }
 }
+
+fn prefer_center(game: &Game, ps: &mut Vec<Possible>) {
+
+    let center = Point {
+        x: (game.board.width / 2) as i16,
+        y: (game.board.height / 2) as i16,
+    };
+    
+    let maxvalue: i32 = (((game.board.width + game.board.height) / 2) -1).into();
+
+    for p in ps {
+        let distancex = (p.point.x as i32 - center.x as i32).abs();
+        let distancey = (p.point.y as i32 - center.y as i32).abs();
+        let distance = distancex + distancey;
+        let mut value: i32 = (maxvalue - (maxvalue - distance) * 3) * -1;
+        if value > 0 {
+            value = 0;
+        }
+
+        p.prefer_center_distance = distance;
+        p.prefer_center_value = value;
+        p.value += value;
+    }
+}
+
+fn avoid_walls(game: &Game, ps: &mut Vec<Possible>) {
+
+
+    let maxvalue = -5;
+
+    for p in ps {
+
+        let wall_top = p.point.y.abs();
+        let wall_right = (p.point.x as i32 - (game.board.width -1) as i32).abs();
+        let wall_bottom  = (p.point.y as i32 - (game.board.height -1) as i32).abs();
+        let wall_left  = p.point.x.abs();
+
+        let mut value = 0;
+        if wall_top == 0 
+            || wall_right == 0 
+            || wall_bottom == 0 
+            || wall_left == 0 
+        {
+            value = maxvalue;
+        }
+
+        p.avoid_walls_value = value;
+        p.value += value;
+    }
+}
+
+#[test]
+fn test_avoid_walls() {
+
+    let game = "{\"game\":{\"id\":\"7c896297-cd4d-4461-bc6e-ce4aa0027fb4\"},\"turn\":270,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":10,\"y\":1}],\"snakes\":[{\"id\":\"gs_Xyg6vv36GXJYVYYhbfBFgK39\",\"name\":\"lduchosal / dev\",\"health\":88,\"body\":[{\"x\":10,\"y\":6},{\"x\":9,\"y\":6},{\"x\":9,\"y\":7},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":7,\"y\":10},{\"x\":7,\"y\":9},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":5,\"y\":10},{\"x\":4,\"y\":10},{\"x\":4,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":6,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":6,\"y\":7},{\"x\":5,\"y\":7},{\"x\":5,\"y\":6},{\"x\":5,\"y\":5},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":6,\"y\":3},{\"x\":5,\"y\":3},{\"x\":4,\"y\":3}]}]},\"you\":{\"id\":\"gs_Xyg6vv36GXJYVYYhbfBFgK39\",\"name\":\"lduchosal / dev\",\"health\":88,\"body\":[{\"x\":10,\"y\":6},{\"x\":9,\"y\":6},{\"x\":9,\"y\":7},{\"x\":8,\"y\":7},{\"x\":8,\"y\":8},{\"x\":8,\"y\":9},{\"x\":8,\"y\":10},{\"x\":7,\"y\":10},{\"x\":7,\"y\":9},{\"x\":6,\"y\":9},{\"x\":6,\"y\":10},{\"x\":5,\"y\":10},{\"x\":4,\"y\":10},{\"x\":4,\"y\":9},{\"x\":5,\"y\":9},{\"x\":5,\"y\":8},{\"x\":6,\"y\":8},{\"x\":7,\"y\":8},{\"x\":7,\"y\":7},{\"x\":6,\"y\":7},{\"x\":5,\"y\":7},{\"x\":5,\"y\":6},{\"x\":5,\"y\":5},{\"x\":5,\"y\":4},{\"x\":6,\"y\":4},{\"x\":6,\"y\":3},{\"x\":5,\"y\":3},{\"x\":4,\"y\":3}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+}
+
+#[test]
+fn test_prefer_center() {
+
+    let game =  "{\"game\":{\"id\":\"649b3bf3-6b0b-45f1-8d75-b945dfe00389\"},\"turn\":1,\"board\":{\"height\":11,\"width\":11,\"food\":[{\"x\":4,\"y\":5}],\"snakes\":[{\"id\":\"gs_gWJd8hwtkfTgf3XCSYtDqwPT\",\"name\":\"lduchosal / dev\",\"health\":99,\"body\":[{\"x\":1,\"y\":2},{\"x\":1,\"y\":1},{\"x\":1,\"y\":1}]}]},\"you\":{\"id\":\"gs_gWJd8hwtkfTgf3XCSYtDqwPT\",\"name\":\"lduchosal / dev\",\"health\":99,\"body\":[{\"x\":1,\"y\":2},{\"x\":1,\"y\":1},{\"x\":1,\"y\":1}]}}";
+    let next = play(game);
+
+    assert_eq!(next, Move::Up);
+}
+
 
 fn prefer_forward_space(game: &Game, ps: &mut Vec<Possible>) {
 
@@ -1073,6 +1149,9 @@ pub struct Possible {
     instant_pathes: u16,
     enroule_ton_snake: Vec<Point>,
     enroule_ton_snake_value: i32,
+    prefer_center_distance: i32,
+    prefer_center_value: i32,
+    avoid_walls_value: i32,
     rand: u8
 }
 
@@ -1101,7 +1180,9 @@ impl Possible {
             instant_pathes: 0,
             enroule_ton_snake: Vec::new(),
             enroule_ton_snake_value: 0,
-
+            prefer_center_distance: 0,
+            prefer_center_value: 0,
+            avoid_walls_value:0, 
         }
     }
 }
